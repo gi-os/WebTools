@@ -33,9 +33,10 @@ class QrPayloadTest {
         assertTrue(t.id.startsWith("tickets-"))
     }
 
-    @Test fun `json with no origins derives one from the address`() {
+    @Test fun `json with no origins derives the page's own host`() {
+        // The whole host, not the registrable domain: a derived allowlist should be the narrow one.
         val t = ok(QrPayload.parse("""{"n":"Weather","u":"https://forecast.weather.gov/"}"""))
-        assertEquals(listOf("weather.gov"), t.origins)
+        assertEquals(listOf("forecast.weather.gov"), t.origins)
     }
 
     @Test fun `origins that omit the page's own host get it added`() {
