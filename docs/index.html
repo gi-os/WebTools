@@ -54,10 +54,6 @@
       <span>Keep a copy on the phone<small>The page is saved after every visit and opens with no signal. Turn this on for a ticket or a boarding pass.</small></span>
     </label>
 
-    <label class="check" style="text-transform:none;letter-spacing:0;font-size:15px;">
-      <input id="browser" type="checkbox">
-      <span>Open in the phone's browser instead of the built-in view<small>Only for a phone that has one. The Light Phone III has none; for a sign-in that refuses the built-in view, use <a href="#login-h">Bring a login</a> below.</small></span>
-    </label>
 
     <div class="err" id="err"></div>
 
@@ -70,7 +66,7 @@
 
     <h1 style="margin-top:48px" id="login-h">Bring a login from this computer</h1>
     <h2>Sign in here, carry it over by code.</h2>
-    <p>Some sign-in pages refuse any embedded view (Ticketmaster runs reCAPTCHA Enterprise and a fingerprint check on its login). The phone has no browser to fall back to. So sign in on this computer, then hand the phone the session: the cookies travel in the code, compressed, and the tool opens already signed in. Nothing leaves this page.</p>
+    <p>Web Tools runs Firefox's engine, and most sign-in pages take it for the browser it is. A few (Ticketmaster runs reCAPTCHA Enterprise and a fingerprint check on its login) still refuse. For those, sign in on this computer and hand the phone the session: the cookies travel in the code, compressed, and the tool opens already signed in. Nothing leaves this page.</p>
     <div class="steps" style="margin-top:8px">
       <div><b>1</b> &nbsp; Sign in to the site in this browser.</div>
       <div><b>2</b> &nbsp; Open DevTools (F12 or ⌥⌘I) → <b>Network</b>. Reload the page. Click the first request to the site.</div>
@@ -122,7 +118,6 @@
     if (name) o.n = name;
     o.o = origins;
     if ($('keep').checked) o.keep = true;
-    if ($('browser').checked) o.e = 'browser';
     return o;
   }
   function draw() {
@@ -144,7 +139,7 @@
       $('err').textContent = 'Too long for one code. Shorten the name or the list of sites.';
     }
   }
-  ['name', 'url', 'keep', 'browser'].forEach(function (id) { $(id).addEventListener('input', draw); $(id).addEventListener('change', draw); });
+  ['name', 'url', 'keep'].forEach(function (id) { $(id).addEventListener('input', draw); $(id).addEventListener('change', draw); });
   $('origins').addEventListener('input', function () { touchedOrigins = $('origins').value.trim() !== ''; draw(); });
   draw();
 
