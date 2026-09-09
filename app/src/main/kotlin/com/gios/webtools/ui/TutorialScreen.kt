@@ -31,49 +31,53 @@ private data class Page(val title: String, val body: String)
 
 private val PAGES = listOf(
     Page(
-        "A shelf, not a browser",
+        "A shelf, and one field",
         "Web Tools keeps a short list of web pages you need now and then: a ticket, a train " +
-            "status, a form you fill twice a year.\n\nEach one opens by itself and stays inside its " +
-            "own site. There is no address bar and no way to wander off. Links to other sites are " +
-            "dead ends.",
+            "status, a form you fill twice a year. That is the shelf.\n\nGO is the other half: one " +
+            "field, one address, opened once and not kept. No suggestions, no history, no search " +
+            "engine standing behind it.\n\nUnderneath is Firefox's engine, so sites see a real " +
+            "browser. Ads and trackers are blocked by uBlock Origin, always.",
     ),
     Page(
         "Adding one",
         "ADD gives you three ways in.\n\nScan a code: open gi-os.github.io/WebTools on a " +
             "computer, fill in the name and address, and point the phone at the code it draws.\n\n" +
-            "Type an address, or take one of the starters.",
+            "Type an address, or take one of the starters. A page on the shelf stays inside its own " +
+            "site; links elsewhere are dead ends, unless you allow them.",
     ),
     Page(
-        "Getting back",
-        "Pull down from the top of a page and let go. A line grows as you pull. When it reads " +
-            "TOOLS, lifting your thumb returns to the list.\n\nLet go early and nothing happens. " +
-            "Pull sideways and it is a scroll.\n\nThe camera button steps back one page, then to " +
-            "the list. The home key leaves the app, as everywhere.",
+        "The pull-down menu",
+        "From the top of any page, pull down. A menu draws out of the top edge, one row at a " +
+            "time: the further you pull, the higher the row. Let go on a lit row to do it. Let go " +
+            "early and nothing happens.\n\nTOOLS goes back to the list. SET AS HOME makes the page " +
+            "you are on the tool's start page (KEEP ON SHELF, for a GO page). READER VIEW shows the " +
+            "text only. SAVE A COPY keeps the page as a PDF for when there is no signal.",
     ),
     Page(
-        "The wheel",
-        "Turn the wheel to scroll any page or list. Pressing it is still the flashlight.",
+        "The wheel and the button",
+        "Turn the wheel to scroll any page or list. Pressing it is still the flashlight.\n\nThe " +
+            "camera button steps back one page, then to the list. The home key leaves the app, as " +
+            "everywhere.",
     ),
     Page(
         "When a sign-in refuses",
-        "Some sign-in pages run a bot check that refuses any embedded view. Ticketmaster's says " +
-            "your browsing was paused, and this phone has no browser to fall back to.\n\nSign in " +
-            "on a computer instead. On gi-os.github.io/WebTools, under Bring a login, paste the " +
-            "page's Copy as cURL from DevTools. Scan the code it draws, in parts if there are " +
-            "several. The tool opens signed in.\n\nAds and \"open in the app\" banners are " +
-            "blocked in the built-in view.",
+        "A few sign-in pages run a bot check that refuses anything but a browser they know. " +
+            "Firefox's engine passes most of them. When one still refuses, sign in on a " +
+            "computer. On gi-os.github.io/WebTools, under Bring a login, paste the page's Copy as " +
+            "cURL from DevTools. Scan the code it draws, in parts if there are several. The tool " +
+            "opens signed in.",
     ),
     Page(
         "Something wrong? Shake",
-        "Shake the phone three times and it asks to send a report: what the page did, its log, " +
-            "and a picture of the screen. Add a line about what happened if you like. NO sends " +
-            "nothing.",
+        "Shake the phone three times and it asks to send a report: what the page did, what the " +
+            "page sees, and a picture of the screen. Add a line about what happened if you like. NO " +
+            "sends nothing.",
     ),
     Page(
         "No signal",
         "Hold a tool in the list to see its page. Turn on Keeping a copy and the page is saved " +
-            "after every visit. With no signal, that copy opens instead.\n\nOpen a ticket at home " +
-            "and it is on the phone at the gate.",
+            "as a PDF after every visit. With no signal, that copy opens instead.\n\nOpen a ticket at " +
+            "home and it is on the phone at the gate.",
     ),
 )
 

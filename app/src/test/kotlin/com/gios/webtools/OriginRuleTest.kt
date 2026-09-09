@@ -22,6 +22,18 @@ class OriginRuleTest {
     @Test fun `null host is blocked`() = assertFalse(OriginRule.allows(tm, null))
     @Test fun `empty origin never matches`() = assertFalse(OriginRule.allows(listOf(""), "anything.com"))
 
+    @Test fun `no origins at all means no wall`() {
+        assertTrue(OriginRule.allows(emptyList(), "anything.example"))
+        assertEquals(Decision.ALLOW, OriginRule.decide(emptyList(), "https", "anything.example", false))
+        assertFalse(OriginRule.allows(emptyList(), ""))
+    }
+
+    @Test fun `the engine's own schemes pass`() {
+        assertEquals(Decision.ALLOW, OriginRule.decide(tm, "about", null, false))
+        assertEquals(Decision.ALLOW, OriginRule.decide(tm, "resource", "android", false))
+        assertEquals(Decision.ALLOW, OriginRule.decide(tm, "moz-extension", "abc", false))
+    }
+
     @Test fun `https to an allowed host goes ahead`() =
         assertEquals(Decision.ALLOW, OriginRule.decide(tm, "https", "ticketmaster.com", false))
 

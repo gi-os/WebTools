@@ -6,9 +6,13 @@ package com.gios.webtools.web
  */
 object OriginRule {
 
-    /** True when [host] equals an allowed origin or is a subdomain of one. */
+    /**
+     * True when [host] equals an allowed origin or is a subdomain of one. An empty list means
+     * no wall at all (a GO page): any host goes.
+     */
     fun allows(origins: List<String>, host: String?): Boolean {
         if (host.isNullOrEmpty()) return false
+        if (origins.isEmpty()) return true
         val h = host.lowercase().removeSuffix(".")
         return origins.any { o ->
             val origin = o.lowercase().removePrefix("www.").removeSuffix(".")
@@ -26,7 +30,8 @@ object OriginRule {
             "http", "https" -> if (allows(origins, host)) Decision.ALLOW else Decision.BLOCK
             "file" -> if (isOwnFile) Decision.ALLOW else Decision.BLOCK
             "tel" -> Decision.HAND_OFF
-            "about", "data", "blob", "javascript" -> Decision.ALLOW
+            // The engine's own: reader view, bundled pages, the bridge extension, PDF viewer.
+            "about", "resource", "moz-extension", "data", "blob", "javascript" -> Decision.ALLOW
             else -> Decision.BLOCK
         }
     }

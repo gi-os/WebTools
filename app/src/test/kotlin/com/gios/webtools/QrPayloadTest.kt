@@ -134,7 +134,7 @@ class QrPayloadTest {
 
     @Test fun `round trips through json`() {
         val t = ok(QrPayload.parse("""{"n":"Tickets","u":"https://t.example/","o":["t.example"],"keep":true}""", now = 9L))
-            .copy(snapshotAt = 3L, lastUsed = 4L, builtIn = false, engine = com.gios.webtools.data.Engine.BROWSER)
+            .copy(snapshotAt = 3L, lastUsed = 4L, builtIn = false, reader = true)
         assertEquals(t, Tool.fromJson(t.toJson()))
     }
 }

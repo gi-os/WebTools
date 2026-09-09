@@ -26,7 +26,7 @@ android {
         targetSdk = 35
         // CI overwrites both from the workflow run number; see .github/workflows/build.yml
         versionCode = 1
-        versionName = "1.2.0"
+        versionName = "2.0.0"
 
         buildConfigField("String", "REPORT_TOKEN", "\"" + reportToken.replace("\\", "").replace("\"", "") + "\"")
 
@@ -41,6 +41,12 @@ android {
             keyAlias = "webtools"
             keyPassword = "webtools"
         }
+    }
+
+    // GeckoView's own native libraries are already page-aligned and meant to load straight from
+    // the APK; extracting them would double the install footprint.
+    packaging {
+        jniLibs { useLegacyPackaging = false }
     }
 
     buildTypes {
@@ -79,17 +85,13 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
 
-    // WebViewAssetLoader gives each bundled tool its own https origin, so storage is per tool
-    // and file:// (opaque origin, no localStorage) is never used for a bundle.
-    implementation("androidx.webkit:webkit:1.12.1")
+    // The engine. Firefox 155 for arm64 only (the LPIII is arm64); ~86 MB of the APK.
+    implementation("org.mozilla.geckoview:geckoview-omni-arm64-v8a:155.0.20260903215306")
 
     // The one camera thing in the app: reading a tool's QR code. Same library BrightPasses
     // and LightTip use for their key QR.
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
 
-    // Engine.BROWSER: the phone's Chromium as a Custom Tab, for sites whose bot gate refuses
-    // every embedded view.
-    implementation("androidx.browser:browser:1.8.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")

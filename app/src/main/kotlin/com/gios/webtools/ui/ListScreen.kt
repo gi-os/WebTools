@@ -22,6 +22,7 @@ fun ListScreen(
     onOpen: (Tool) -> Unit,
     onInfo: (Tool) -> Unit,
     onAdd: () -> Unit,
+    onGo: () -> Unit,
     onHelp: () -> Unit,
 ) {
     WheelScroll(listState)
@@ -30,7 +31,7 @@ fun ListScreen(
         Rule()
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (tools.isEmpty()) {
-                EmptyState("No tools yet.\n\nADD reads a code from the companion page, or takes a web address.")
+                EmptyState("No tools yet.\n\nADD keeps a page on this list. GO opens one address, once.")
             } else {
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                     items(tools, key = { it.id }) { tool ->
@@ -45,6 +46,6 @@ fun ListScreen(
                 }
             }
         }
-        ActionBar(listOf(BarAction("ADD", onAdd), BarAction("HELP", onHelp)))
+        ActionBar(listOf(BarAction("ADD", onAdd), BarAction("GO", onGo), BarAction("HELP", onHelp)))
     }
 }

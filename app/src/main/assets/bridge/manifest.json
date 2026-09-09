@@ -1,0 +1,25 @@
+{
+  "manifest_version": 2,
+  "name": "WebTools bridge",
+  "version": "2.0.0",
+  "description": "The app's hands inside the page: sets a carried-over login, answers the shake report, hides 'open in the app' banners.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "bridge@webtools.gios",
+      "strict_min_version": "128.0"
+    }
+  },
+  "permissions": ["cookies", "tabs", "nativeMessaging", "storage", "<all_urls>"],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": true
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ]
+}

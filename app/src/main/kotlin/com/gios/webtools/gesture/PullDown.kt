@@ -3,19 +3,17 @@ package com.gios.webtools.gesture
 import kotlin.math.abs
 
 /**
- * The back-to-the-list gesture: pull down from the top of whatever is on screen and let go.
+ * The pull. From the top of whatever is on screen, the thumb draws down a menu; how far it has
+ * come picks an item; the lift commits (Sailfish's pulley menu, BrightControl's arm-on-cross,
+ * commit-on-lift rule). Coming back up un-picks. A stroke that drifts further sideways than
+ * down is cancelled for the rest of the stroke, so a scrub across a page never opens anything.
  *
- * Crossing the trigger arms, the lift commits (BrightControl's rule). Firing at the threshold
- * would make the gesture unabortable; arming lets the thumb come back. A stroke that drifts
- * further sideways than down is cancelled for the rest of the stroke, so a scrub across a page
- * never leaves the page.
- *
- * Pure: pixels in, a stage out. The view layer decides when a stroke may even start (content at
- * its top) and draws the indicator from [progress].
+ * Pure: pixels in, travel out. [Pulley] turns travel into an item; the view layer decides when a
+ * stroke may even start (content at its top) and draws the menu from [travel].
  */
-class PullDown(private val triggerPx: Float, private val slopPx: Float) {
+class PullDown(private val slopPx: Float) {
 
-    enum class Stage { IDLE, TRACKING, ARMED, CANCELLED }
+    enum class Stage { IDLE, TRACKING, CANCELLED }
 
     var stage: Stage = Stage.IDLE
         private set
@@ -23,10 +21,10 @@ class PullDown(private val triggerPx: Float, private val slopPx: Float) {
     private var startX = 0f
     var startY = 0f
         private set
-    private var travel = 0f
 
-    /** 0..1 of the way to the trigger; clamps at 1 once armed. */
-    val progress: Float get() = if (stage == Stage.IDLE || stage == Stage.CANCELLED) 0f else (travel / triggerPx).coerceIn(0f, 1f)
+    /** How far down the thumb has come from where it landed, never negative. */
+    var travel = 0f
+        private set
 
     fun down(x: Float, y: Float) {
         startX = x; startY = y; travel = 0f
@@ -35,28 +33,51 @@ class PullDown(private val triggerPx: Float, private val slopPx: Float) {
 
     /** True while the gesture wants the stroke for itself. */
     fun move(x: Float, y: Float): Boolean {
-        if (stage == Stage.IDLE || stage == Stage.CANCELLED) return false
+        if (stage != Stage.TRACKING) return false
         val dx = x - startX
         val dy = y - startY
         // Sideways wins: a long flick that ends with a drift is the stroke this rule exists for.
         if (abs(dx) > slopPx && abs(dx) > dy) {
             stage = Stage.CANCELLED
+            travel = 0f
             return false
         }
-        travel = dy
-        stage = if (dy >= triggerPx) Stage.ARMED else Stage.TRACKING
+        travel = if (dy > 0f) dy else 0f
         return dy > slopPx
     }
 
-    /** True when the lift should commit. Always resets. */
-    fun up(): Boolean {
-        val commit = stage == Stage.ARMED
+    /** The travel at the lift, or 0 when the stroke was cancelled. Always resets. */
+    fun up(): Float {
+        val t = if (stage == Stage.TRACKING) travel else 0f
         reset()
-        return commit
+        return t
     }
 
     fun reset() {
         stage = Stage.IDLE
         travel = 0f
     }
+}
+
+/**
+ * Travel to item. The item nearest the content is reached first, the one at the top of the menu
+ * with the longest pull, as on a Sailfish pulley. Below [deadzonePx] nothing is picked and a lift
+ * does nothing.
+ */
+object Pulley {
+    /**
+     * Index into a list of [count] items ordered top-to-bottom; -1 for none. A row is picked once
+     * the thumb has drawn out half of it, so a row just peeking in is not yet live.
+     */
+    fun select(travelPx: Float, count: Int, pitchPx: Float, deadzonePx: Float): Int {
+        if (count <= 0 || pitchPx <= 0f) return -1
+        val units = (travelPx - deadzonePx) / pitchPx - 0.5f
+        if (units < 0f) return -1
+        val fromBottom = units.toInt().coerceAtMost(count - 1)
+        return count - 1 - fromBottom
+    }
+
+    /** How tall the drawn menu is for this travel: never past the items, never negative. */
+    fun height(travelPx: Float, count: Int, pitchPx: Float, deadzonePx: Float): Float =
+        travelPx.coerceIn(0f, deadzonePx + count * pitchPx)
 }

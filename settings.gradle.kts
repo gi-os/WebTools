@@ -10,7 +10,13 @@ pluginManagement {
  */
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories { google(); mavenCentral() }
+    repositories {
+        google()
+        mavenCentral()
+        // GeckoView: Firefox's engine as a library. The phone's WebView is Chromium 113 and Light
+        // decides when that changes; this rides in the APK and updates when we do.
+        maven { url = uri("https://maven.mozilla.org/maven2/") }
+    }
 }
 rootProject.name = "WebTools"
 include(":app")

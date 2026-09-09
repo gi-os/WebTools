@@ -28,15 +28,15 @@ import com.gios.webtools.hw.WheelScroll
 import com.gios.webtools.ui.theme.Dim
 
 /** A tool you might want, offered on the ADD page so the first tools cost nothing to type. */
-data class Starter(val name: String, val url: String, val origins: List<String>, val keep: Boolean, val browser: Boolean = false)
+data class Starter(val name: String, val url: String, val origins: List<String>, val keep: Boolean, val reader: Boolean = false)
 
 val STARTERS = listOf(
     Starter("Subway status", "https://new.mta.info/status", listOf("mta.info"), keep = false),
     Starter("Weather", "https://forecast.weather.gov/", listOf("weather.gov"), keep = true),
-    // Ticketmaster's sign-in runs reCAPTCHA Enterprise + FingerprintJS and refuses this WebView.
-    // The site itself works; the login comes over from a computer by code (companion page).
+    // Ticketmaster's sign-in runs reCAPTCHA Enterprise + FingerprintJS. Firefox's engine is a real
+    // browser to it; if it still refuses, the login comes over from a computer by code.
     Starter("Ticketmaster", "https://www.ticketmaster.com/", listOf("ticketmaster.com", "livenation.com"), keep = false),
-    Starter("Wikipedia", "https://en.m.wikipedia.org/", listOf("wikipedia.org", "wikimedia.org"), keep = false),
+    Starter("Wikipedia", "https://en.m.wikipedia.org/", listOf("wikipedia.org", "wikimedia.org"), keep = false, reader = true),
 )
 
 /**

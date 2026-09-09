@@ -2,7 +2,6 @@ package com.gios.webtools
 
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -10,18 +9,12 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.KeyEvent
-import android.webkit.CookieManager
-import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
-import androidx.browser.customtabs.CustomTabColorSchemeParams
-import androidx.browser.customtabs.CustomTabsClient
-import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,7 +33,6 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
-import com.gios.webtools.data.Engine
 import com.gios.webtools.data.Tool
 import com.gios.webtools.data.ToolKind
 import com.gios.webtools.data.ToolStore
@@ -53,7 +45,8 @@ import com.gios.webtools.report.PageLog
 import com.gios.webtools.report.Reports
 import com.gios.webtools.report.ShakeGesture
 import com.gios.webtools.ui.AddScreen
-import com.gios.webtools.ui.ExitIndicator
+import com.gios.webtools.ui.PulleyMenu
+import com.gios.webtools.ui.GoScreen
 import com.gios.webtools.ui.InfoScreen
 import com.gios.webtools.ui.ListScreen
 import com.gios.webtools.ui.ReportSheet
@@ -61,47 +54,46 @@ import com.gios.webtools.ui.Starter
 import com.gios.webtools.ui.ToolScreen
 import com.gios.webtools.ui.TutorialScreen
 import com.gios.webtools.ui.theme.WebToolsTheme
-import com.gios.webtools.web.BlockLists
+import com.gios.webtools.web.GeckoTool
+import com.gios.webtools.web.OriginRule
 import com.gios.webtools.web.QrPayload
-import com.gios.webtools.web.ToolWebListener
-import com.gios.webtools.web.ToolWebView
+import com.gios.webtools.web.ToolPageListener
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.text.DateFormat
 import java.util.Date
 
 private sealed class Screen {
     data object Tutorial : Screen()
     data object Home : Screen()
+    data object Go : Screen()
     data class Add(val message: String? = null) : Screen()
     data class Info(val id: String) : Screen()
     data class Page(val id: String, val saved: Boolean) : Screen()
 }
 
 /**
- * One activity, a handful of screens, one WebView at a time.
+ * One activity, a handful of screens, one page at a time.
  *
- * The root view is a [PullDownFrame], so the exit gesture works the same over a page as over
- * the list. `dispatchKeyEvent` is where the wheel and the camera button can be seen.
+ * The root view is a [PullDownFrame], so the back-to-the-list gesture works the same over a page
+ * as over the list. `dispatchKeyEvent` is where the wheel and the camera button can be seen.
  */
 class MainActivity : ComponentActivity() {
 
     private lateinit var store: ToolStore
+    private val app: WebToolsApp get() = application as WebToolsApp
     private val wheel = WheelBus()
     private val handler = Handler(Looper.getMainLooper())
 
     private var screen by mutableStateOf<Screen>(Screen.Home)
     private var status by mutableStateOf<String?>(null)
-    private var pullProgress by mutableFloatStateOf(0f)
-    private var pullArmed by mutableStateOf(false)
+    private var pullTravel by mutableFloatStateOf(0f)
+    private var pullPicked by mutableStateOf(-1)
+    private var pulleyPitchDp = 64f
+    private var pulleyDeadzoneDp = 36f
 
-    private var webView: WebView? = null
-    private var openTool: Tool? = null
-    private var viewingSaved = false
-    private var pageLog: PageLog? = null
+    private var page by mutableStateOf<GeckoTool?>(null)
     /** The last host the wall refused, per tool, so the tool's page can offer to allow it. */
     private val lastBlocked = HashMap<String, String>()
 
@@ -109,15 +101,6 @@ class MainActivity : ComponentActivity() {
     private var partsId: String? = null
     private var partsCount = 0
     private val parts = HashMap<Int, String>()
-
-    /** Packages that answer an https ACTION_VIEW, minus us. Empty on a LightOS phone. */
-    private val browsers: List<String> by lazy {
-        val probe = Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com/"))
-        packageManager.queryIntentActivities(probe, PackageManager.MATCH_ALL)
-            .map { it.activityInfo.packageName }
-            .filter { it != packageName }
-            .distinct()
-    }
 
     // Shake to report.
     private val shake = ShakeGesture()
@@ -157,8 +140,12 @@ class MainActivity : ComponentActivity() {
 
         val frame = PullDownFrame(this)
         frame.atTop = { contentAtTop() }
-        frame.onProgress = { p, armed -> pullProgress = p; pullArmed = armed }
-        frame.onExit = { home() }
+        frame.itemCount = { pulleyItems().size }
+        frame.onProgress = { travel, picked -> pullTravel = travel; pullPicked = picked }
+        frame.onSelect = { index -> pulleyPick(index) }
+        val d = resources.displayMetrics.density
+        pulleyPitchDp = frame.pitchPx / d
+        pulleyDeadzoneDp = frame.deadzonePx / d
 
         val compose = ComposeView(this)
         compose.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
@@ -174,12 +161,10 @@ class MainActivity : ComponentActivity() {
 
         sensors = getSystemService(Context.SENSOR_SERVICE) as? SensorManager
 
-        // Housekeeping off the main thread: post anything queued from an earlier shake, and
-        // refresh the ad list once a week.
+        // Post anything queued from an earlier shake.
         lifecycleScope.launch {
             val sent = Reports.drain(this@MainActivity)
             if (sent > 0) say(if (sent == 1) "Sent a saved report" else "Sent $sent saved reports")
-            withContext(Dispatchers.IO) { BlockLists.refreshIfStale(this@MainActivity) }
         }
     }
 
@@ -222,7 +207,12 @@ class MainActivity : ComponentActivity() {
                                 onOpen = { show(it) },
                                 onInfo = { go(Screen.Info(it.id)) },
                                 onAdd = { go(Screen.Add()) },
+                                onGo = { go(Screen.Go) },
                                 onHelp = { go(Screen.Tutorial) },
+                            )
+                            Screen.Go -> GoScreen(
+                                onOpen = { typed -> goOnce(typed) },
+                                onBack = { go(Screen.Home) },
                             )
                             is Screen.Add -> AddScreen(
                                 message = s.message,
@@ -243,7 +233,6 @@ class MainActivity : ComponentActivity() {
                                         online = online(),
                                         onOpen = { show(tool) },
                                         onOpenSaved = { show(tool, forceSaved = true) },
-                                        browserAvailable = browsers.isNotEmpty(),
                                         blockedHost = lastBlocked[tool.id],
                                         onAllowBlocked = {
                                             lastBlocked[tool.id]?.let { h ->
@@ -252,27 +241,30 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         onToggleKeep = { store.update(tool.id) { t -> t.copy(keep = !t.keep) } },
-                                        onToggleEngine = {
-                                            store.update(tool.id) { t ->
-                                                t.copy(engine = if (t.engine == Engine.BROWSER) Engine.BUILTIN else Engine.BROWSER)
-                                            }
-                                        },
+                                        onToggleReader = { store.update(tool.id) { t -> t.copy(reader = !t.reader) } },
+                                        onForgetLogin = { forgetLogin(tool) },
                                         onRemove = { store.remove(tool.id); go(Screen.Home) },
                                         onBack = { go(Screen.Home) },
                                     )
                                 }
                             }
                             is Screen.Page -> {
-                                val wv = webView
-                                if (wv == null) LaunchedEffect(Unit) { go(Screen.Home) } else ToolScreen(webView = wv, status = status)
+                                val p = page
+                                if (p == null) LaunchedEffect(Unit) { go(Screen.Home) } else ToolScreen(session = p.session, status = status)
                             }
                         }
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                            ExitIndicator(progress = pullProgress, armed = pullArmed)
+                            PulleyMenu(
+                                items = pulleyItems(),
+                                travelPx = pullTravel,
+                                picked = pullPicked,
+                                pitchDp = pulleyPitchDp,
+                                deadzoneDp = pulleyDeadzoneDp,
+                            )
                         }
                         if (reportOffer) {
                             ReportSheet(
-                                toolName = openTool?.name,
+                                toolName = page?.tool?.name,
                                 hasToken = BuildConfig.REPORT_TOKEN.isNotBlank(),
                                 onSend = { note -> sendReport(note) },
                                 onDismiss = { reportOffer = false; shot = null; probeJson = null },
@@ -296,8 +288,8 @@ class MainActivity : ComponentActivity() {
     private fun back() {
         when (screen) {
             is Screen.Page -> {
-                val wv = webView
-                if (wv != null && wv.canGoBack()) wv.goBack() else go(Screen.Home)
+                val p = page
+                if (p != null && p.canGoBack) p.goBack() else go(Screen.Home)
             }
             Screen.Home -> leave()
             Screen.Tutorial -> {
@@ -308,12 +300,81 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** The pull-down landed: back to the list. The list itself has nowhere to pull to. */
+    /** The pull-down landed on "Tools": back to the list. The list itself has nowhere to pull to. */
     private fun home() {
         if (screen is Screen.Tutorial) {
             getSharedPreferences("webtools", Context.MODE_PRIVATE).edit().putBoolean("tutorialSeen", true).apply()
         }
         go(Screen.Home)
+    }
+
+    // ---- the pulley menu ----
+
+    private object Pull {
+        const val TOOLS = "Tools"
+        const val SET_HOME = "Set as home"
+        const val KEEP = "Keep on shelf"
+        const val READER_ON = "Reader view"
+        const val READER_OFF = "Full page"
+        const val SAVE = "Save a copy"
+    }
+
+    /** Rows top-to-bottom; the bottom row is reached first, so the common one goes last. */
+    private fun pulleyItems(): List<String> {
+        val p = page
+        return when (screen) {
+            Screen.Home -> emptyList()
+            is Screen.Page -> if (p == null) listOf(Pull.TOOLS) else buildList {
+                if (p.tool.kind == ToolKind.SITE) {
+                    add(Pull.SAVE)
+                    add(if (p.tool.reader) Pull.READER_OFF else Pull.READER_ON)
+                    add(if (p.tool.id.isEmpty()) Pull.KEEP else Pull.SET_HOME)
+                }
+                add(Pull.TOOLS)
+            }
+            else -> listOf(Pull.TOOLS)
+        }
+    }
+
+    private fun pulleyPick(index: Int) {
+        val item = pulleyItems().getOrNull(index) ?: return
+        val p = page
+        when (item) {
+            Pull.TOOLS -> home()
+            Pull.SET_HOME -> {
+                val url = p?.currentUrl ?: return
+                if (!url.startsWith("http")) { say("Not a page to set as home"); return }
+                val host = Tool.hostOf(url)
+                store.update(p.tool.id) { t ->
+                    t.copy(url = url, origins = if (OriginRule.allows(t.origins, host)) t.origins else t.origins + host)
+                }
+                say("Home is now ${url.take(60)}")
+            }
+            Pull.KEEP -> {
+                val url = p?.currentUrl ?: return
+                if (!url.startsWith("http")) { say("Not a page to keep"); return }
+                val host = Tool.hostOf(url)
+                val id = Tool.slug(host) + "-" + url.hashCode().toUInt().toString(36).take(4)
+                store.put(
+                    Tool(
+                        id = id, name = host.substringBefore('.').replaceFirstChar { it.uppercase() },
+                        kind = ToolKind.SITE, url = url, origins = listOf(host), added = System.currentTimeMillis(),
+                    ),
+                )
+                say("Kept on the shelf. Hold it there to rename or loosen the wall.")
+            }
+            Pull.READER_ON, Pull.READER_OFF -> {
+                val tool = p?.tool ?: return
+                val next = tool.copy(reader = !tool.reader)
+                if (tool.id.isNotEmpty()) store.update(tool.id) { it.copy(reader = next.reader) }
+                show(next)
+            }
+            Pull.SAVE -> {
+                val tool = p?.tool ?: return
+                if (tool.id.isEmpty()) { say("Keep it on the shelf first, then save") ; return }
+                saveSnapshot()
+            }
+        }
     }
 
     /** Leaving the app is the system's business (home key); the list just closes. */
@@ -324,7 +385,7 @@ class MainActivity : ComponentActivity() {
 
     /** The pull-down may start only when the content is at its top, and never on the list. */
     private fun contentAtTop(): Boolean = when (screen) {
-        is Screen.Page -> (webView?.scrollY ?: 0) <= 0
+        is Screen.Page -> (page?.scrollY ?: 0) <= 0
         Screen.Home -> false
         else -> pageScroll.value == 0
     }
@@ -333,88 +394,58 @@ class MainActivity : ComponentActivity() {
 
     private fun show(tool: Tool, forceSaved: Boolean = false) {
         closeTool()
-        if (tool.kind == ToolKind.SITE && tool.engine == Engine.BROWSER) {
-            store.touch(tool.id)
-            openInBrowser(tool)
-            return
-        }
-        val snapshot = store.snapshotFile(tool.id)
-        val saved = tool.kind == ToolKind.SITE && snapshot.exists() && (forceSaved || !online())
-        viewingSaved = saved
-        openTool = tool
+        val snapshot = store.snapshotFile(tool.id.ifEmpty { "once" })
+        val saved = tool.kind == ToolKind.SITE && tool.id.isNotEmpty() && snapshot.exists() && (forceSaved || !online())
         val log = PageLog()
-        pageLog = log
-        val wv = ToolWebView.create(this, tool, store.dirFor(tool.id), listener, log)
-        webView = wv
-        store.touch(tool.id)
+        val p = GeckoTool(this, tool, app.runtime, listener, log)
+        page = p
+        if (tool.id.isNotEmpty() && store.get(tool.id) != null) store.touch(tool.id)
         screen = Screen.Page(tool.id, saved)
         status = if (saved) "Saved copy · " + DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(tool.snapshotAt)) else "Loading"
         if (!saved && !online() && tool.kind == ToolKind.SITE) status = "No signal, and no saved copy yet"
-        ToolWebView.open(wv, tool, snapshot, saved)
+        p.open(snapshot, saved)
+    }
+
+    /**
+     * GO: one address, once. A page with no wall and no row in the list. The browser's half of
+     * the app; the shelf is the other half.
+     */
+    private fun goOnce(typed: String) {
+        val t = typed.trim()
+        if (t.isEmpty()) return
+        val url = if (t.contains("://")) t else "https://$t"
+        val host = Tool.hostOf(url)
+        if (host.isEmpty()) { say("Not an address"); return }
+        val tool = Tool(
+            id = "", name = host, kind = ToolKind.SITE, url = url,
+            origins = emptyList(), added = System.currentTimeMillis(),
+        )
+        show(tool)
     }
 
     private fun closeTool() {
         snapshotJob?.let { handler.removeCallbacks(it) }
         snapshotJob = null
-        ToolWebView.flushCookies()
-        webView?.let { wv ->
-            (wv.parent as? android.view.ViewGroup)?.removeView(wv)
-            wv.stopLoading()
-            wv.destroy()
-        }
-        webView = null
-        openTool = null
-        viewingSaved = false
-        pageLog = null
+        page?.close()
+        page = null
     }
 
-    /**
-     * The phone's own browser as a Custom Tab: Chromium's cookie jar and Chromium's fingerprint,
-     * which is what a Kasada-gated sign-in (Ticketmaster) insists on. The allowlist and the saved
-     * copy do not apply there; the tool row says so.
-     */
-    private fun openInBrowser(tool: Tool) {
-        val pkg = CustomTabsClient.getPackageName(this, browsers, true)
-            ?: browsers.firstOrNull { it.contains("chrom", ignoreCase = true) }
-            ?: browsers.firstOrNull()
-        if (pkg == null) {
-            // LightOS has no browser. Say so once, then open in the built-in view rather than nothing.
-            store.update(tool.id) { it.copy(engine = Engine.BUILTIN) }
-            say("No browser on this phone. Opened in the built-in view.")
-            store.get(tool.id)?.let { show(it) }
-            return
-        }
-        val tab = CustomTabsIntent.Builder()
-            .setShowTitle(false)
-            .setUrlBarHidingEnabled(true)
-            .setColorScheme(CustomTabsIntent.COLOR_SCHEME_DARK)
-            .setDefaultColorSchemeParams(
-                CustomTabColorSchemeParams.Builder()
-                    .setToolbarColor(android.graphics.Color.BLACK)
-                    .setNavigationBarColor(android.graphics.Color.BLACK)
-                    .build(),
-            )
-            .build()
-        tab.intent.setPackage(pkg)
-        runCatching { tab.launchUrl(this, Uri.parse(tool.url)) }
-            .onFailure {
-                runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(tool.url)).setPackage(pkg)) }
-                    .onFailure { say("Could not open $pkg") }
-            }
-    }
-
-    private val listener = object : ToolWebListener {
+    private val listener = object : ToolPageListener {
         override fun onBlocked(host: String) {
-            val tool = openTool
-            if (tool != null && host.contains('.')) lastBlocked[tool.id] = host.lowercase().removePrefix("www.")
+            val tool = page?.tool
+            if (tool != null && tool.id.isNotEmpty() && host.contains('.')) lastBlocked[tool.id] = host.lowercase().removePrefix("www.")
             say("Stays inside " + (tool?.origins?.firstOrNull() ?: "this site") + " · blocked $host · hold the tool to allow it")
         }
 
         override fun onRedirectedTo(host: String) {
-            val tool = openTool ?: return
+            val tool = page?.tool ?: return
+            if (tool.id.isEmpty()) return
             store.update(tool.id) { t -> if (t.origins.contains(host)) t else t.copy(origins = t.origins + host) }
-            openTool = store.get(tool.id)
             say("Following the site to $host")
+        }
+
+        override fun onRefused(title: String) {
+            say("This site refuses the sign-in from here. Sign in on a computer and bring the login over by code.")
         }
 
         override fun onProgress(loading: Boolean) {
@@ -422,37 +453,26 @@ class MainActivity : ComponentActivity() {
             if (!loading && status == "Loading") status = null
         }
 
-        override fun onRefused(title: String) {
-            val tool = openTool ?: return
-            say(
-                if (browsers.isEmpty()) {
-                    "This site refuses the built-in view. Sign in on a computer and bring the login over by code."
-                } else {
-                    "This site refuses the built-in view. Hold ${tool.name} in the list and switch it to the phone's browser."
-                },
-            )
-        }
-
         override fun onLoaded(url: String) {
-            val tool = openTool ?: return
+            val p = page ?: return
+            val tool = p.tool
             if (status == "Loading") status = null
-            webView?.let { ToolWebView.applyPageFixes(it) }
             // Freshness: a kept site is re-saved after every live visit, once the page has had a
             // moment to finish its own scripts.
-            if (tool.kind == ToolKind.SITE && tool.keep && !viewingSaved && url.startsWith("http")) {
+            if (tool.kind == ToolKind.SITE && tool.keep && tool.id.isNotEmpty() && !p.viewingSaved && url.startsWith("http")) {
                 snapshotJob?.let { handler.removeCallbacks(it) }
                 val job = Runnable { saveSnapshot() }
                 snapshotJob = job
-                handler.postDelayed(job, 1500L)
+                handler.postDelayed(job, 2500L)
             }
         }
 
         override fun onFailed(description: String) {
-            val tool = openTool ?: return
-            if (!viewingSaved && tool.hasSnapshot && store.snapshotFile(tool.id).exists()) {
+            val p = page ?: return
+            val tool = p.tool
+            if (!p.viewingSaved && tool.id.isNotEmpty() && tool.hasSnapshot && store.snapshotFile(tool.id).exists()) {
                 // The live page did not come; the saved copy is the whole point of having one.
-                // Posted: destroying a WebView from inside its own client callback is not safe.
-                handler.post { if (openTool?.id == tool.id && !viewingSaved) show(tool, forceSaved = true) }
+                handler.post { if (page === p) show(tool, forceSaved = true) }
             } else {
                 say("Could not load: $description")
             }
@@ -460,10 +480,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun saveSnapshot() {
-        val wv = webView ?: return
-        val tool = openTool ?: return
+        val p = page ?: return
+        val tool = p.tool
         val target = store.snapshotFile(tool.id)
-        ToolWebView.snapshot(wv, target) { ok ->
+        p.snapshot(target) { ok ->
             if (ok) {
                 store.update(tool.id) { it.copy(snapshotAt = System.currentTimeMillis()) }
                 say("Saved a copy")
@@ -490,12 +510,10 @@ class MainActivity : ComponentActivity() {
 
     /** The picture is taken at the shake, before the sheet is what is on screen. */
     private fun offerReport() {
-        val tool = openTool
-        val wv = webView
         Reports.screenshot(this) { bmp ->
             shot = bmp
-            if (wv != null && tool != null) {
-                ToolWebView.probe(wv) { json ->
+            if (page != null) {
+                app.bridge.probe { json ->
                     probeJson = json
                     reportOffer = true
                 }
@@ -507,13 +525,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun sendReport(note: String) {
-        val extras = "browsers: " + (if (browsers.isEmpty()) "none" else browsers.joinToString(", ")) +
-            "\nwebview: " + ToolWebView.features(this)
+        val extras = "engine: GeckoView " + org.mozilla.geckoview.BuildConfig.MOZ_APP_VERSION +
+            " · bridge " + (if (app.bridge.connected) "connected" else "not connected")
         val draft = Reports.compose(
             context = this,
-            tool = openTool,
+            tool = page?.tool,
             note = note,
-            pageLog = (pageLog?.dump() ?: "") + "\n" + extras,
+            pageLog = (page?.log?.dump() ?: "") + "\n" + extras,
             probe = probeJson,
             screenshot = shot,
             online = online(),
@@ -553,11 +571,18 @@ class MainActivity : ComponentActivity() {
         when (val r = QrPayload.parse(fixed)) {
             is QrPayload.Result.Ok -> {
                 partsId = null; parts.clear(); partsCount = 0
-                r.login?.let { importLogin(it) }
                 store.put(r.tool)
-                if (r.login != null) {
-                    say("Signed in as on the computer")
-                    show(r.tool)
+                val login = r.login
+                if (login != null) {
+                    say("Signing in as on the computer…")
+                    app.bridge.setCookies(login.domain, login.cookies) { set, failed ->
+                        if (set == 0) {
+                            screen = Screen.Add("The login did not take (${failed.size} cookies refused). Try a fresh code.")
+                        } else {
+                            say("Signed in: $set cookies" + if (failed.isNotEmpty()) ", ${failed.size} refused" else "")
+                            show(r.tool)
+                        }
+                    }
                 } else {
                     go(Screen.Info(r.tool.id))
                 }
@@ -584,26 +609,17 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * A sign-in done on a computer, carried over as cookies. Set for the domain, so every host
-     * under it sees them, the way the browser that made them would send them.
-     */
-    private fun importLogin(login: QrPayload.Login) {
-        val cm = CookieManager.getInstance()
-        cm.setAcceptCookie(true)
-        val url = "https://${login.domain}/"
-        for (c in login.cookies) {
-            cm.setCookie(url, "$c; Domain=${login.domain}; Path=/; Secure")
-        }
-        cm.flush()
+    private fun forgetLogin(tool: Tool) {
+        val domain = tool.origins.firstOrNull() ?: Tool.hostOf(tool.url)
+        if (domain.isEmpty()) return
+        app.bridge.clearCookies(domain) { ok -> say(if (ok) "Signed out of $domain" else "Could not clear $domain") }
     }
 
     private fun addStarter(s: Starter) {
         val id = Tool.slug(s.name)
         val tool = Tool(
             id = id, name = s.name, kind = ToolKind.SITE, url = s.url, origins = s.origins,
-            engine = if (s.browser) Engine.BROWSER else Engine.BUILTIN,
-            keep = s.keep, added = System.currentTimeMillis(),
+            keep = s.keep, reader = s.reader, added = System.currentTimeMillis(),
         )
         store.put(tool)
         go(Screen.Info(id))
@@ -637,13 +653,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun scrollWheel(delta: Int) {
-        val wv = webView
-        if (screen is Screen.Page && wv != null) {
-            val step = (wv.height * 0.22f).toInt().coerceAtLeast(120)
-            val dy = -delta * step
-            if ((dy > 0 && wv.canScrollVertically(1)) || (dy < 0 && wv.canScrollVertically(-1))) {
-                wv.scrollBy(0, dy)
-            }
+        val p = page
+        if (screen is Screen.Page && p != null) {
+            val step = (resources.displayMetrics.heightPixels * 0.22f).toInt().coerceAtLeast(120)
+            p.scrollBy(-delta * step)
         } else {
             wheel.send(delta)
         }
@@ -651,14 +664,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
-        webView?.onPause()
-        ToolWebView.flushCookies()
+        page?.setActive(false)
         sensors?.unregisterListener(shakeListener)
     }
 
     override fun onResume() {
         super.onResume()
-        webView?.onResume()
+        page?.setActive(true)
         sensors?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.let {
             sensors?.registerListener(shakeListener, it, SensorManager.SENSOR_DELAY_GAME)
         }

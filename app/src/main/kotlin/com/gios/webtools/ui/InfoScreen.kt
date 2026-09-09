@@ -18,7 +18,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.gios.webtools.data.Engine
 import com.gios.webtools.data.Tool
 import com.gios.webtools.data.ToolKind
 import com.gios.webtools.hw.WheelScroll
@@ -37,11 +36,11 @@ fun InfoScreen(
     online: Boolean,
     onOpen: () -> Unit,
     onOpenSaved: () -> Unit,
-    browserAvailable: Boolean,
     blockedHost: String?,
     onAllowBlocked: () -> Unit,
     onToggleKeep: () -> Unit,
-    onToggleEngine: () -> Unit,
+    onToggleReader: () -> Unit,
+    onForgetLogin: () -> Unit,
     onRemove: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -49,16 +48,12 @@ fun InfoScreen(
     var confirmRemove by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
-        TopBar(tool.name, right = when {
-            tool.kind == ToolKind.BUNDLE -> "on the phone"
-            tool.engine == Engine.BROWSER -> "in the browser"
-            else -> "site"
-        })
+        TopBar(tool.name, right = if (tool.kind == ToolKind.BUNDLE) "on the phone" else "site")
         Rule()
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll)) {
             Spacer(Modifier.height(8.dp))
             Field("Address", tool.url)
-            if (tool.kind == ToolKind.SITE && tool.engine == Engine.BUILTIN) {
+            if (tool.kind == ToolKind.SITE) {
                 Field("Stays inside", tool.origins.joinToString("\n"))
                 Field(
                     "Saved copy",
@@ -73,40 +68,31 @@ fun InfoScreen(
             Rule()
             ListRow(title = if (online) "Open" else "Open (offline)", detail = null, onClick = onOpen)
             if (tool.kind == ToolKind.SITE) {
-                if (blockedHost != null && tool.engine == Engine.BUILTIN && !tool.origins.contains(blockedHost)) {
+                if (blockedHost != null && !tool.origins.contains(blockedHost)) {
                     ListRow(
                         title = "Allow $blockedHost",
                         detail = "The wall refused it last time. Allowing adds it to this tool only.",
                         onClick = onAllowBlocked,
                     )
                 }
-                if (browserAvailable) {
-                    ListRow(
-                        title = if (tool.engine == Engine.BROWSER) "Opens in: the phone's browser" else "Opens in: built-in view",
-                        detail = if (tool.engine == Engine.BROWSER) {
-                            "The phone's browser, its cookies, its fingerprint. No allowlist, no saved copy."
-                        } else {
-                            "Switch when a sign-in page says your browsing was paused."
-                        },
-                        onClick = onToggleEngine,
-                    )
-                } else {
-                    ListRow(
-                        title = "Sign in on a computer",
-                        detail = "This phone has no browser. Sign in there and bring the login over by code: gi-os.github.io/WebTools",
-                        onClick = {},
-                    )
+                ListRow(
+                    title = if (tool.reader) "Reader view: on" else "Reader view: off",
+                    detail = "Text only, no layout. Good for articles, wrong for tickets and forms.",
+                    onClick = onToggleReader,
+                )
+                if (tool.hasSnapshot) {
+                    ListRow(title = "Open the saved copy", detail = "Works with no signal", onClick = onOpenSaved)
                 }
-                if (tool.engine == Engine.BUILTIN) {
-                    if (tool.hasSnapshot) {
-                        ListRow(title = "Open the saved copy", detail = "Works with no signal", onClick = onOpenSaved)
-                    }
-                    ListRow(
-                        title = if (tool.keep) "Keeping a copy: on" else "Keeping a copy: off",
-                        detail = "Saves the page after each visit, so it opens with no signal",
-                        onClick = onToggleKeep,
-                    )
-                }
+                ListRow(
+                    title = if (tool.keep) "Keeping a copy: on" else "Keeping a copy: off",
+                    detail = "Saves the page as a PDF after each visit, so it opens with no signal",
+                    onClick = onToggleKeep,
+                )
+                ListRow(
+                    title = "Sign out of this site",
+                    detail = "Clears its cookies. A login brought over by code goes with them.",
+                    onClick = onForgetLogin,
+                )
             }
             ListRow(
                 title = if (confirmRemove) "Tap again to remove" else "Remove",
