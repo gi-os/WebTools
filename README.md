@@ -94,6 +94,13 @@ BrightMarket or Obtainium. The app asks for the camera once, the first time you 
 
 Versioning is `v1.x.x`. CI stamps the patch number from the build.
 
+### v2.0.7
+
+- Engine created in the main process only. Gecko's child processes run the same
+  `Application.onCreate`, and a runtime inside one killed the page on load.
+- `CrashLog`: an uncaught exception files itself on the next launch.
+- Native libraries compressed in the APK: 108 MB, not 202.
+
 ### v2.0.0
 
 - GeckoView 148 replaces the WebView. uBlock Origin and strict tracking protection built in.

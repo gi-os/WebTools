@@ -23,6 +23,13 @@ fall back to. So 2.0 ships an engine of its own.
 - **Sign out of this site** on the tool's page clears its cookies.
 - The shake report now names the engine and the state of the bridge extension.
 
+## Fixed since 2.0.5
+
+- A page crashed the app the moment it loaded. Gecko's content process shares the app's
+  startup code, and the engine was being created twice, once where it must not be. Now the
+  engine starts in the main process only. A crash now files its own report on the next launch.
+- The download was 202 MB with the engine's libraries stored flat. Compressed, it is 108 MB.
+
 ## Known limits
 
 - First launch is slower: the engine starts and the two extensions install, once.
