@@ -46,10 +46,11 @@ android {
         }
     }
 
-    // GeckoView's own native libraries are already page-aligned and meant to load straight from
-    // the APK; extracting them would double the install footprint.
+    // Compress the engine's native libraries inside the APK. Stored flat they made a 202 MB
+    // download; compressed it is about 95 MB, and Android unpacks them once at install. The
+    // phone has the disk; the cellular update does not have the patience.
     packaging {
-        jniLibs { useLegacyPackaging = false }
+        jniLibs { useLegacyPackaging = true }
     }
 
     buildTypes {
