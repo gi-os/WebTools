@@ -7,7 +7,7 @@ fall back to. So 2.0 ships an engine of its own.
 ## In this release
 
 - **Firefox's engine (GeckoView 148) inside the app.** Sites see a real browser. Nothing here
-  pretends to be anything. The APK is about 90 MB now, and it carries its own engine forward.
+  pretends to be anything. The APK is about 108 MB now, and it carries its own engine forward.
 - **uBlock Origin, built in, always on.** Plus Firefox's own strict tracking protection. There
   is no switch.
 - **GO.** One field on the shelf: an address, opened once, not kept. No suggestions, no history,

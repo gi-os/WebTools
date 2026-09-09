@@ -39,7 +39,7 @@ did not ask for, no tabs.
 The phone's WebView is Chromium 113 and Light decides when that changes. Bot checks refuse it,
 it cannot rewrite its client hints, and there is no browser on the phone to hand a page to.
 GeckoView is Firefox's engine as a library: current, independent of the phone, and a real browser
-to every site. It costs about 86 MB of the APK and a slower first launch. It buys a page that
+to every site. It costs about 100 MB of download and a slower first launch. It buys a page that
 works.
 
 ## Adding a tool
