@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -10,7 +12,7 @@ plugins {
 val reportToken: String = System.getenv("REPORT_TOKEN")
     ?: run {
         val lp = rootProject.file("local.properties")
-        if (lp.exists()) java.util.Properties().apply { lp.inputStream().use { load(it) } }.getProperty("reportToken") ?: "" else ""
+        if (lp.exists()) Properties().apply { lp.inputStream().use { load(it) } }.getProperty("reportToken") ?: "" else ""
     }
 
 android {

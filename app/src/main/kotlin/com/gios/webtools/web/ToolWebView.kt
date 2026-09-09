@@ -32,6 +32,11 @@ interface ToolWebListener {
     fun onFailed(description: String)
     /** The page is a bot gate that has refused the embedded view. */
     fun onRefused(title: String)
+    /**
+     * The site itself sent the first load to another host (tutanota.com -> tuta.com). Followed,
+     * and worth remembering on the tool.
+     */
+    fun onRedirectedTo(host: String)
 }
 
 /**
@@ -97,6 +102,9 @@ object ToolWebView {
         }
         val blockList: BlockList? = if (tool.kind == ToolKind.SITE) BlockLists.get(context) else null
         val ownDir = toolDir.canonicalPath
+        // Grows when the first load is redirected elsewhere; the activity persists the addition.
+        val allowed = ArrayList(tool.origins)
+        var settled = false
 
         if (tool.kind == ToolKind.SITE) installDocumentStartScript(view)
 
@@ -115,11 +123,22 @@ object ToolWebView {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val uri = request.url
                 val ownFile = uri.scheme == "file" && (uri.path?.let { File(it).canonicalPath.startsWith(ownDir) } == true)
-                return when (OriginRule.decide(tool.origins, uri.scheme, uri.host, ownFile)) {
+                return when (OriginRule.decide(allowed, uri.scheme, uri.host, ownFile)) {
                     OriginRule.Decision.ALLOW -> false
                     OriginRule.Decision.BLOCK -> {
+                        val host = uri.host
+                        val isHttp = uri.scheme == "http" || uri.scheme == "https"
+                        if (isHttp && host != null && request.isRedirect && request.isForMainFrame && !settled) {
+                            // The site moved (tutanota.com is tuta.com now). A server redirect during
+                            // the first load is the site's own doing, not a wander. Follow, remember.
+                            val h = host.lowercase().removePrefix("www.")
+                            allowed.add(h)
+                            log.nav("follow   $uri")
+                            listener.onRedirectedTo(h)
+                            return false
+                        }
                         log.navBlocked(uri.toString())
-                        listener.onBlocked(uri.host ?: uri.scheme.orEmpty())
+                        listener.onBlocked(host ?: uri.scheme.orEmpty())
                         true
                     }
                     OriginRule.Decision.HAND_OFF -> {
@@ -135,6 +154,7 @@ object ToolWebView {
             }
 
             override fun onPageFinished(view: WebView, url: String?) {
+                settled = true
                 listener.onProgress(false)
                 if (url != null) listener.onLoaded(url)
             }

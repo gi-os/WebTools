@@ -37,6 +37,8 @@ fun InfoScreen(
     online: Boolean,
     onOpen: () -> Unit,
     onOpenSaved: () -> Unit,
+    blockedHost: String?,
+    onAllowBlocked: () -> Unit,
     onToggleKeep: () -> Unit,
     onToggleEngine: () -> Unit,
     onRemove: () -> Unit,
@@ -70,6 +72,13 @@ fun InfoScreen(
             Rule()
             ListRow(title = if (online) "Open" else "Open (offline)", detail = null, onClick = onOpen)
             if (tool.kind == ToolKind.SITE) {
+                if (blockedHost != null && tool.engine == Engine.BUILTIN && !tool.origins.contains(blockedHost)) {
+                    ListRow(
+                        title = "Allow $blockedHost",
+                        detail = "The wall refused it last time. Allowing adds it to this tool only.",
+                        onClick = onAllowBlocked,
+                    )
+                }
                 ListRow(
                     title = if (tool.engine == Engine.BROWSER) "Opens in: Chromium" else "Opens in: built-in view",
                     detail = if (tool.engine == Engine.BROWSER) {

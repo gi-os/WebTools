@@ -101,6 +101,8 @@ class MainActivity : ComponentActivity() {
     private var openTool: Tool? = null
     private var viewingSaved = false
     private var pageLog: PageLog? = null
+    /** The last host the wall refused, per tool, so the tool's page can offer to allow it. */
+    private val lastBlocked = HashMap<String, String>()
 
     // Shake to report.
     private val shake = ShakeGesture()
@@ -221,6 +223,13 @@ class MainActivity : ComponentActivity() {
                                         online = online(),
                                         onOpen = { show(tool) },
                                         onOpenSaved = { show(tool, forceSaved = true) },
+                                        blockedHost = lastBlocked[tool.id],
+                                        onAllowBlocked = {
+                                            lastBlocked[tool.id]?.let { h ->
+                                                store.update(tool.id) { t -> if (t.origins.contains(h)) t else t.copy(origins = t.origins + h) }
+                                                lastBlocked.remove(tool.id)
+                                            }
+                                        },
                                         onToggleKeep = { store.update(tool.id) { t -> t.copy(keep = !t.keep) } },
                                         onToggleEngine = {
                                             store.update(tool.id) { t ->
@@ -377,7 +386,16 @@ class MainActivity : ComponentActivity() {
 
     private val listener = object : ToolWebListener {
         override fun onBlocked(host: String) {
-            say("Stays inside " + (openTool?.origins?.firstOrNull() ?: "this site") + " · blocked $host")
+            val tool = openTool
+            if (tool != null && host.contains('.')) lastBlocked[tool.id] = host.lowercase().removePrefix("www.")
+            say("Stays inside " + (tool?.origins?.firstOrNull() ?: "this site") + " · blocked $host · hold the tool to allow it")
+        }
+
+        override fun onRedirectedTo(host: String) {
+            val tool = openTool ?: return
+            store.update(tool.id) { t -> if (t.origins.contains(host)) t else t.copy(origins = t.origins + host) }
+            openTool = store.get(tool.id)
+            say("Following the site to $host")
         }
 
         override fun onProgress(loading: Boolean) {
