@@ -91,7 +91,7 @@
 
     <div class="err" id="lerr"></div>
     <p id="lstat" style="font-size:13px"></p>
-    <div id="lcodes" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px"></div>
+    <div id="lcodes" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:20px"></div>
     <p style="font-size:13px;margin-top:12px">On the phone: ADD → SCAN, then scan the parts in order. Sessions expire the way they do in a browser; when the site asks you to sign in again, make a new code.</p>
   </section>
 
@@ -151,7 +151,7 @@
   // ---- Bring a login ----
   // Cookies out of a pasted "Copy as cURL" (or a bare header), deflate-raw + base64url, then as
   // many QR codes as it takes. The phone joins the parts and sets the cookies for the domain.
-  var PART = 1500; // characters of payload per code; keeps each image scannable by a phone camera
+  var PART = 1200; // characters of payload per code: a denser code than this stops scanning on a phone camera
   function parseCurl(text) {
     var out = { cookie: '', url: '' };
     var t = text.trim();
@@ -217,7 +217,7 @@
       var cap = document.createElement('div'); cap.style.cssText = 'font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:#9a9a9a;margin-bottom:6px';
       cap.textContent = frames.length === 1 ? 'login code' : ('part ' + (i + 1) + ' of ' + frames.length);
       var code = document.createElement('div'); code.className = 'code';
-      try { var qr = qrcode(0, 'L'); qr.addData(f); qr.make(); code.innerHTML = qr.createImgTag(4, 0); }
+      try { var qr = qrcode(0, 'L'); qr.addData(f); qr.make(); code.innerHTML = qr.createImgTag(5, 0); }
       catch (e) { code.innerHTML = '<span style="color:#000;font-size:12px">too big</span>'; }
       wrap.appendChild(cap); wrap.appendChild(code); box.appendChild(wrap);
     });
