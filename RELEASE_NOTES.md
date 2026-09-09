@@ -16,6 +16,8 @@ site, and can keep an offline copy. There is no address bar.
 - **The wheel scrolls.** The camera button goes back.
 - **Three ways to add:** scan a code from <https://gi-os.github.io/WebTools/>, type an address,
   or take a starter (subway status, weather, Ticketmaster, Wikipedia).
+- Sites see a phone running Chrome, not an embedded WebView. Ticketmaster's bot check refused the
+  stock WebView with a "browsing activity paused" page.
 - A five-page tutorial on first run, again from HELP.
 
 ## Known limits

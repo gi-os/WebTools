@@ -11,7 +11,10 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.webkit.UserAgentMetadata
+import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewAssetLoader
+import androidx.webkit.WebViewFeature
 import com.gios.webtools.data.Tool
 import com.gios.webtools.data.ToolKind
 import java.io.File
@@ -55,6 +58,7 @@ object ToolWebView {
         s.javaScriptCanOpenWindowsAutomatically = false
         s.cacheMode = WebSettings.LOAD_DEFAULT
         s.setGeolocationEnabled(false)
+        lookLikeChrome(context, s)
 
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(view, true)
@@ -116,6 +120,52 @@ object ToolWebView {
             }
         }
         return view
+    }
+
+    /**
+     * A stock WebView announces itself three ways, and bot checks (Ticketmaster's "your browsing
+     * activity has been paused" page, for one) refuse on any of them:
+     *
+     *  1. the user agent carries `; wv` and `Version/4.0`, which no browser sends;
+     *  2. the client hints name the brand `Android WebView`, so a cleaned user agent is caught as
+     *     a mismatch;
+     *  3. every request carries `X-Requested-With: <package>`.
+     *
+     * This is the same page the same person would get in Chrome. It is not a disguise, it is
+     * the WebView not volunteering that it is embedded.
+     */
+    private fun lookLikeChrome(context: Context, s: WebSettings) {
+        runCatching {
+            val stock = WebSettings.getDefaultUserAgent(context)
+            s.userAgentString = stock
+                .replace("; wv", "")
+                .replace(Regex("""Version/\d+(\.\d+)* """), "")
+        }
+        runCatching {
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.USER_AGENT_METADATA)) {
+                val meta = WebSettingsCompat.getUserAgentMetadata(s)
+                val brands = meta.brandVersionList.map { b ->
+                    if (b.brand.contains("WebView", ignoreCase = true)) {
+                        UserAgentMetadata.BrandVersion.Builder()
+                            .setBrand("Google Chrome")
+                            .setMajorVersion(b.majorVersion)
+                            .setFullVersion(b.fullVersion)
+                            .build()
+                    } else {
+                        b
+                    }
+                }
+                WebSettingsCompat.setUserAgentMetadata(
+                    s,
+                    UserAgentMetadata.Builder(meta).setBrandVersionList(brands).setMobile(true).build(),
+                )
+            }
+        }
+        runCatching {
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
+                WebSettingsCompat.setRequestedWithHeaderOriginAllowList(s, emptySet())
+            }
+        }
     }
 
     /** Load the tool live, or its saved copy. */

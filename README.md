@@ -20,6 +20,8 @@ page. None of those deserved an APK.
 - **The wheel scrolls.** Any page, any list. The camera button goes back one page. Press it again
   for the list.
 - **Two tools ship inside:** a bill splitter and a unit converter. Both work with no network.
+- **Sites see Chrome.** The WebView drops its `; wv` user agent, its `Android WebView` client hint
+  and the `X-Requested-With` header. Ticketmaster's bot check refuses all three.
 
 ## Adding a tool
 
