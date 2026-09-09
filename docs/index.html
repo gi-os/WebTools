@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Web Tools · add a tool</title>
+<meta name="description" content="Make a code that adds a web page to Web Tools on a Light Phone III.">
+<link rel="icon" href="icon.png">
+<style>
+  :root { --bg:#000; --fg:#fff; --dim:#9a9a9a; --faint:#5e5e5e; --rule:#262626; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font-family: Akkurat, -apple-system, "Helvetica Neue", Roboto, system-ui, sans-serif; line-height:1.4; }
+  main { max-width: 900px; margin: 0 auto; padding: 32px 20px 80px; display:grid; grid-template-columns: 1fr 340px; gap: 40px; }
+  @media (max-width: 760px) { main { grid-template-columns: 1fr; } }
+  h1 { font-size: 13px; letter-spacing: .15em; text-transform: uppercase; color: var(--dim); font-weight: 500; margin: 0 0 28px; padding-bottom: 14px; border-bottom: 1px solid var(--rule); }
+  h2 { font-size: 26px; font-weight: 300; margin: 0 0 8px; }
+  p { color: var(--dim); font-size: 15px; margin: 0 0 18px; }
+  label { display:block; font-size: 12px; letter-spacing: .15em; text-transform: uppercase; color: var(--dim); margin: 22px 0 6px; }
+  input[type=text], input[type=url], textarea { width:100%; background:none; border:0; border-bottom:1px solid var(--dim); color:var(--fg); font: inherit; font-size: 20px; padding: 8px 0; outline: none; border-radius: 0; }
+  input:focus, textarea:focus { border-bottom-color: var(--fg); }
+  textarea { font-size: 15px; resize: vertical; min-height: 56px; }
+  .check { display:flex; gap: 12px; align-items:flex-start; margin-top: 22px; color: var(--fg); font-size: 15px; }
+  .check input { width: 18px; height: 18px; margin-top: 3px; accent-color: #fff; }
+  .check small { display:block; color: var(--dim); }
+  .code { background:#fff; padding: 16px; display:flex; align-items:center; justify-content:center; aspect-ratio: 1; }
+  .code canvas, .code img { image-rendering: pixelated; width: 100%; height: auto; }
+  .side p { font-size: 13px; }
+  .raw { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--faint); word-break: break-all; margin-top: 12px; }
+  .steps { border-top: 1px solid var(--rule); margin-top: 32px; padding-top: 8px; }
+  .steps div { padding: 12px 0; border-bottom: 1px solid var(--rule); color: var(--dim); font-size: 15px; }
+  .steps b { color: var(--fg); font-weight: 500; }
+  a { color: var(--fg); }
+  .err { color: var(--fg); font-size: 13px; margin-top: 8px; min-height: 18px; }
+</style>
+</head>
+<body>
+<main>
+  <section>
+    <h1>Web Tools · add a tool</h1>
+    <h2>Turn a web page into a tool.</h2>
+    <p>Fill this in, then open Web Tools on the phone, tap ADD, then SCAN, and point it here. Nothing leaves this page; the code is drawn in your browser.</p>
+
+    <label for="name">Name on the phone</label>
+    <input id="name" type="text" placeholder="Tickets" maxlength="40" autocomplete="off">
+
+    <label for="url">Address</label>
+    <input id="url" type="url" placeholder="https://www.ticketmaster.com/member/tickets" autocomplete="off" spellcheck="false">
+
+    <label for="origins">Stays inside these sites <span style="letter-spacing:0;text-transform:none;color:var(--faint)">— one per line, filled from the address</span></label>
+    <textarea id="origins" spellcheck="false"></textarea>
+
+    <label class="check" style="text-transform:none;letter-spacing:0;font-size:15px;">
+      <input id="keep" type="checkbox">
+      <span>Keep a copy on the phone<small>The page is saved after every visit and opens with no signal. Turn this on for a ticket or a boarding pass.</small></span>
+    </label>
+
+    <div class="err" id="err"></div>
+
+    <div class="steps">
+      <div><b>1</b> &nbsp; On the phone: Web Tools → ADD → SCAN.</div>
+      <div><b>2</b> &nbsp; Hold the phone up to the code. It reads it and shows the tool's page.</div>
+      <div><b>3</b> &nbsp; Tap OPEN. The site logs in and behaves like it does in any browser, and stays inside the sites listed above.</div>
+    </div>
+    <p style="margin-top:24px">Web Tools is on <a href="https://brightmarket.gzl.dev/app/com.gios.webtools/">BrightMarket</a> and <a href="https://github.com/gi-os/WebTools">GitHub</a>.</p>
+  </section>
+
+  <aside class="side">
+    <div class="code" id="code"><span style="color:#5e5e5e;font-size:13px;text-align:center">Type an address to draw the code</span></div>
+    <div class="raw" id="raw"></div>
+  </aside>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var touchedOrigins = false;
+
+  function hostOf(u) {
+    try { return new URL(u).hostname.toLowerCase().replace(/^www\./, ''); } catch (e) { return ''; }
+  }
+  function payload() {
+    var url = $('url').value.trim();
+    if (url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
+    var host = hostOf(url);
+    if (!host) return null;
+    var origins = $('origins').value.split(/\n+/).map(function (s) { return s.trim().toLowerCase().replace(/^www\./, ''); }).filter(Boolean);
+    if (origins.indexOf(host) < 0 && !origins.some(function (o) { return host.endsWith('.' + o); })) origins.push(host);
+    var o = { wt: 1, u: url };
+    var name = $('name').value.trim();
+    if (name) o.n = name;
+    o.o = origins;
+    if ($('keep').checked) o.keep = true;
+    return o;
+  }
+  function draw() {
+    var host = hostOf($('url').value.trim().replace(/^(?!https?:\/\/)/i, 'https://'));
+    if (!touchedOrigins) $('origins').value = host || '';
+    var p = payload();
+    var box = $('code');
+    $('err').textContent = '';
+    if (!p) { box.innerHTML = '<span style="color:#5e5e5e;font-size:13px;text-align:center">Type an address to draw the code</span>'; $('raw').textContent = ''; return; }
+    var text = JSON.stringify(p);
+    try {
+      // Level M, per the family rule for anything a phone camera reads off a screen.
+      var qr = qrcode(0, 'M');
+      qr.addData(text);
+      qr.make();
+      box.innerHTML = qr.createImgTag(6, 0);
+      $('raw').textContent = text;
+    } catch (e) {
+      $('err').textContent = 'Too long for one code. Shorten the name or the list of sites.';
+    }
+  }
+  ['name', 'url', 'keep'].forEach(function (id) { $(id).addEventListener('input', draw); $(id).addEventListener('change', draw); });
+  $('origins').addEventListener('input', function () { touchedOrigins = $('origins').value.trim() !== ''; draw(); });
+  draw();
+})();
+</script>
+</body>
+</html>

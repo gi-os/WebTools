@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Split a bill</title>
+<link rel="stylesheet" href="/_light/light.css">
+<style>
+  .line { display: flex; justify-content: space-between; padding: 2.5vw 0; border-bottom: 1px solid var(--rule); font-size: 4.6vw; }
+  .line span:last-child { font-variant-numeric: tabular-nums; }
+  .tips { display: flex; gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-top: 4vw; }
+  .tips button { flex: 1; background: var(--bg); border: 0; color: var(--dim); font: inherit; font-size: 4.2vw; height: 13vw; }
+  .tips button.on { background: var(--fg); color: var(--bg); }
+</style>
+</head>
+<body>
+<h1>Split a bill</h1>
+
+<div class="big center" id="bill">$0.00</div>
+<p class="center dim" id="hint">Bill total</p>
+
+<div class="keys" id="keys">
+  <button>7</button><button>8</button><button>9</button>
+  <button>4</button><button>5</button><button>6</button>
+  <button>1</button><button>2</button><button>3</button>
+  <button class="small" data-k="clear">clear</button><button>0</button><button class="small" data-k="back">back</button>
+</div>
+
+<label>Tip</label>
+<div class="tips" id="tips">
+  <button data-t="0">none</button><button data-t="15">15%</button><button data-t="18" class="on">18%</button><button data-t="20">20%</button><button data-t="25">25%</button>
+</div>
+
+<label>People</label>
+<div class="row"><span class="t" id="people">2</span><span>
+  <button class="small" id="less" style="background:none;border:1px solid var(--rule);color:var(--fg);font:inherit;font-size:5vw;width:14vw;height:12vw">−</button>
+  <button class="small" id="more" style="background:none;border:1px solid var(--rule);color:var(--fg);font:inherit;font-size:5vw;width:14vw;height:12vw;margin-left:2vw">+</button>
+</span></div>
+
+<div style="margin-top:6vw">
+  <div class="line"><span>Tip</span><span id="tipAmt">$0.00</span></div>
+  <div class="line"><span>Total</span><span id="total">$0.00</span></div>
+  <div class="line" style="font-size:6vw"><span>Each</span><span id="each">$0.00</span></div>
+</div>
+
+<script>
+(function () {
+  // All money is cents. Largest-remainder split so the shares always sum to the total.
+  var cents = 0, tip = 18, people = 2;
+  var $ = function (id) { return document.getElementById(id); };
+  var money = function (c) { return '$' + (c / 100).toFixed(2); };
+  function render() {
+    var tipC = Math.round(cents * tip / 100);
+    var total = cents + tipC;
+    var each = Math.floor(total / people);
+    var extra = total - each * people; // this many people pay one cent more
+    $('bill').textContent = money(cents);
+    $('tipAmt').textContent = money(tipC);
+    $('total').textContent = money(total);
+    $('each').textContent = extra ? money(each) + ' / ' + money(each + 1) : money(each);
+    $('people').textContent = people;
+    try { localStorage.setItem('split', JSON.stringify({ cents: cents, tip: tip, people: people })); } catch (e) {}
+  }
+  try {
+    var s = JSON.parse(localStorage.getItem('split') || 'null');
+    if (s) { cents = s.cents || 0; tip = s.tip == null ? 18 : s.tip; people = s.people || 2; }
+  } catch (e) {}
+  $('keys').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.k === 'clear') cents = 0;
+    else if (b.dataset.k === 'back') cents = Math.floor(cents / 10);
+    else if (cents < 100000000) cents = cents * 10 + parseInt(b.textContent, 10);
+    render();
+  });
+  $('tips').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    tip = parseInt(b.dataset.t, 10);
+    var all = $('tips').querySelectorAll('button');
+    for (var i = 0; i < all.length; i++) all[i].classList.toggle('on', all[i] === b);
+    render();
+  });
+  $('less').addEventListener('click', function () { if (people > 1) people--; render(); });
+  $('more').addEventListener('click', function () { if (people < 40) people++; render(); });
+  var all = $('tips').querySelectorAll('button');
+  for (var j = 0; j < all.length; j++) all[j].classList.toggle('on', parseInt(all[j].dataset.t, 10) === tip);
+  render();
+})();
+</script>
+</body>
+</html>

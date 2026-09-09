@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Convert units</title>
+<link rel="stylesheet" href="/_light/light.css">
+<style>
+  .pair { display: flex; gap: 3vw; align-items: flex-end; margin-top: 2vw; }
+  .pair > div { flex: 1; }
+  select { font-size: 4.4vw; color: var(--dim); }
+  .out { font-size: 11vw; font-weight: 300; padding: 4vw 0 1vw; font-variant-numeric: tabular-nums; word-break: break-all; }
+  .cats { display: flex; gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin-top: 5vw; }
+  .cats button { flex: 1; background: var(--bg); border: 0; color: var(--dim); font: inherit; font-size: 3.4vw; letter-spacing: 0.1em; text-transform: uppercase; height: 12vw; }
+  .cats button.on { background: var(--fg); color: var(--bg); }
+</style>
+</head>
+<body>
+<h1>Convert units</h1>
+
+<div class="cats" id="cats"></div>
+
+<label>From</label>
+<div class="pair">
+  <div><input id="val" inputmode="decimal" placeholder="0" autocomplete="off"></div>
+  <div><select id="from"></select></div>
+</div>
+
+<label>To</label>
+<div class="pair">
+  <div class="out" id="out">0</div>
+  <div><select id="to"></select></div>
+</div>
+
+<div class="bar">
+  <button id="swap">swap</button>
+  <button id="clear">clear</button>
+</div>
+
+<script>
+(function () {
+  // Every unit is a factor to a base unit; temperature is the one exception and gets functions.
+  var CATS = {
+    length: { m: 1, km: 1000, cm: 0.01, mm: 0.001, mi: 1609.344, yd: 0.9144, ft: 0.3048, 'in': 0.0254 },
+    weight: { kg: 1, g: 0.001, lb: 0.45359237, oz: 0.028349523125, st: 6.35029318 },
+    volume: { L: 1, mL: 0.001, 'gal (US)': 3.785411784, qt: 0.946352946, pt: 0.473176473, cup: 0.2365882365, 'fl oz': 0.0295735295625, tbsp: 0.01478676478125, tsp: 0.00492892159375 },
+    temp: { '°C': 'c', '°F': 'f', 'K': 'k' },
+    speed: { 'km/h': 1, 'mph': 1.609344, 'm/s': 3.6, 'kn': 1.852 }
+  };
+  var DEFAULTS = { length: ['mi', 'km'], weight: ['lb', 'kg'], volume: ['cup', 'mL'], temp: ['°F', '°C'], speed: ['mph', 'km/h'] };
+  var $ = function (id) { return document.getElementById(id); };
+  var cat = 'length';
+  try { var s = JSON.parse(localStorage.getItem('convert') || 'null'); if (s && CATS[s.cat]) { cat = s.cat; } } catch (e) {}
+
+  function toC(v, u) { return u === 'c' ? v : u === 'f' ? (v - 32) * 5 / 9 : v - 273.15; }
+  function fromC(v, u) { return u === 'c' ? v : u === 'f' ? v * 9 / 5 + 32 : v + 273.15; }
+
+  function fill(sel, units, pick) {
+    sel.innerHTML = '';
+    Object.keys(units).forEach(function (u) {
+      var o = document.createElement('option'); o.value = u; o.textContent = u; if (u === pick) o.selected = true; sel.appendChild(o);
+    });
+  }
+  function setCat(c, keep) {
+    cat = c;
+    var b = $('cats').querySelectorAll('button');
+    for (var i = 0; i < b.length; i++) b[i].classList.toggle('on', b[i].dataset.c === c);
+    var saved = null; try { saved = JSON.parse(localStorage.getItem('convert:' + c) || 'null'); } catch (e) {}
+    var d = saved || DEFAULTS[c];
+    fill($('from'), CATS[c], d[0]); fill($('to'), CATS[c], d[1]);
+    if (!keep) $('val').value = '';
+    render();
+  }
+  function render() {
+    var v = parseFloat(($('val').value || '').replace(',', '.'));
+    var f = $('from').value, t = $('to').value, out;
+    if (isNaN(v)) { out = '0'; }
+    else if (cat === 'temp') { out = fromC(toC(v, CATS.temp[f]), CATS.temp[t]); }
+    else { out = v * CATS[cat][f] / CATS[cat][t]; }
+    if (typeof out === 'number') {
+      var a = Math.abs(out);
+      out = a >= 1000 ? out.toLocaleString(undefined, { maximumFractionDigits: 1 })
+          : a >= 1 ? out.toLocaleString(undefined, { maximumFractionDigits: 3 })
+          : out.toLocaleString(undefined, { maximumSignificantDigits: 4 });
+    }
+    $('out').textContent = out;
+    try {
+      localStorage.setItem('convert', JSON.stringify({ cat: cat }));
+      localStorage.setItem('convert:' + cat, JSON.stringify([f, t]));
+    } catch (e) {}
+  }
+  Object.keys(CATS).forEach(function (c) {
+    var b = document.createElement('button'); b.dataset.c = c; b.textContent = c;
+    b.addEventListener('click', function () { setCat(c, true); });
+    $('cats').appendChild(b);
+  });
+  $('val').addEventListener('input', render);
+  $('from').addEventListener('change', render);
+  $('to').addEventListener('change', render);
+  $('swap').addEventListener('click', function () {
+    var f = $('from').value; $('from').value = $('to').value; $('to').value = f; render();
+  });
+  $('clear').addEventListener('click', function () { $('val').value = ''; render(); $('val').focus(); });
+  setCat(cat, true);
+})();
+</script>
+</body>
+</html>
