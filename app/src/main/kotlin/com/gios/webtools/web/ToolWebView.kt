@@ -5,7 +5,9 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
@@ -14,9 +16,12 @@ import android.webkit.WebViewClient
 import androidx.webkit.UserAgentMetadata
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewAssetLoader
+import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import com.gios.webtools.data.Tool
 import com.gios.webtools.data.ToolKind
+import com.gios.webtools.report.PageLog
+import java.io.ByteArrayInputStream
 import java.io.File
 
 /** What the screen around the WebView needs to hear. */
@@ -25,21 +30,33 @@ interface ToolWebListener {
     fun onProgress(loading: Boolean)
     fun onLoaded(url: String)
     fun onFailed(description: String)
+    /** The page is a bot gate that has refused the embedded view. */
+    fun onRefused(title: String)
 }
 
 /**
- * Builds the WebView for one tool: the origin wall, the per-bundle https origin, and the
- * settings that make an ordinary site usable on a 1080x1240 panel.
+ * Builds the WebView for one tool: the origin wall, the ad block, the per-bundle https origin,
+ * the settings that make an ordinary site usable on a 1080x1240 panel, and a page log the shake
+ * report reads from.
  */
 object ToolWebView {
+
+    /** Titles Ticketmaster's EPS gate sets when it has decided against the client. */
+    private val GATE_TITLES = listOf(
+        "Your Browsing Activity Has Been Paused",
+        "Let's Get Your Identity Verified",
+        "Pardon Our Interruption",
+        "Access Denied",
+        "Just a moment",
+    )
 
     @SuppressLint("SetJavaScriptEnabled")
     fun create(
         context: Context,
         tool: Tool,
         toolDir: File,
-        snapshotFile: File,
         listener: ToolWebListener,
+        log: PageLog,
     ): WebView {
         val view = WebView(context)
         val s: WebSettings = view.settings
@@ -78,13 +95,21 @@ object ToolWebView {
         } else {
             null
         }
-
+        val blockList: BlockList? = if (tool.kind == ToolKind.SITE) BlockLists.get(context) else null
         val ownDir = toolDir.canonicalPath
+
+        if (tool.kind == ToolKind.SITE) installDocumentStartScript(view)
 
         view.webViewClient = object : WebViewClient() {
 
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-                return assets?.shouldInterceptRequest(request.url)
+                assets?.let { return it.shouldInterceptRequest(request.url) }
+                val host = request.url.host
+                if (blockList != null && !request.isForMainFrame && blockList.blocks(host)) {
+                    log.blocked(host ?: "?")
+                    return empty()
+                }
+                return null
             }
 
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -93,6 +118,7 @@ object ToolWebView {
                 return when (OriginRule.decide(tool.origins, uri.scheme, uri.host, ownFile)) {
                     OriginRule.Decision.ALLOW -> false
                     OriginRule.Decision.BLOCK -> {
+                        log.navBlocked(uri.toString())
                         listener.onBlocked(uri.host ?: uri.scheme.orEmpty())
                         true
                     }
@@ -104,6 +130,7 @@ object ToolWebView {
             }
 
             override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
+                log.nav(url)
                 listener.onProgress(true)
             }
 
@@ -112,27 +139,51 @@ object ToolWebView {
                 if (url != null) listener.onLoaded(url)
             }
 
+            override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, errorResponse: WebResourceResponse) {
+                if (request.isForMainFrame) {
+                    log.http(request.url.toString(), errorResponse.statusCode, errorResponse.responseHeaders)
+                }
+            }
+
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: android.webkit.WebResourceError) {
                 // Only the main document matters; a broken tracker pixel is not a failed page.
                 if (request.isForMainFrame) {
-                    listener.onFailed(error.description?.toString() ?: "could not load")
+                    val why = error.description?.toString() ?: "could not load"
+                    log.error(request.url.toString(), why)
+                    listener.onFailed(why)
                 }
+            }
+        }
+
+        view.webChromeClient = object : WebChromeClient() {
+            override fun onReceivedTitle(view: WebView, title: String?) {
+                log.title(title)
+                if (title != null && GATE_TITLES.any { title.contains(it, ignoreCase = true) }) {
+                    listener.onRefused(title)
+                }
+            }
+
+            override fun onConsoleMessage(m: ConsoleMessage): Boolean {
+                log.console(m.messageLevel().name, m.message(), m.sourceId(), m.lineNumber())
+                return true
             }
         }
         return view
     }
 
+    private fun empty() = WebResourceResponse("text/plain", "utf-8", 200, "OK", emptyMap(), ByteArrayInputStream(ByteArray(0)))
+
     /**
-     * A stock WebView announces itself three ways, and bot checks (Ticketmaster's "your browsing
-     * activity has been paused" page, for one) refuse on any of them:
+     * A stock WebView announces itself three ways, and bot checks refuse on any of them:
      *
      *  1. the user agent carries `; wv` and `Version/4.0`, which no browser sends;
      *  2. the client hints name the brand `Android WebView`, so a cleaned user agent is caught as
      *     a mismatch;
      *  3. every request carries `X-Requested-With: <package>`.
      *
-     * This is the same page the same person would get in Chrome. It is not a disguise, it is
-     * the WebView not volunteering that it is embedded.
+     * This is the page the same person would get in Chrome. It is not a disguise, it is the
+     * WebView not volunteering that it is embedded. It is also not enough for Kasada (see
+     * [Engine.BROWSER][com.gios.webtools.data.Engine.BROWSER]).
      */
     private fun lookLikeChrome(context: Context, s: WebSettings) {
         runCatching {
@@ -168,6 +219,33 @@ object ToolWebView {
         }
     }
 
+    /**
+     * Runs before any page script on every site: hides "open in the app" banners by the class
+     * and id names the common vendors use, and gives the page a `window.chrome` object when the
+     * WebView has none (Chrome always has one; its absence is a tell).
+     */
+    private fun installDocumentStartScript(view: WebView) {
+        runCatching {
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                WebViewCompat.addDocumentStartJavaScript(view, START_SCRIPT, setOf("*"))
+            }
+        }
+    }
+
+    /** Fallback for a WebView without DOCUMENT_START_SCRIPT: same script, after load. */
+    fun applyPageFixes(view: WebView) {
+        runCatching {
+            if (!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                view.evaluateJavascript(START_SCRIPT, null)
+            }
+        }
+    }
+
+    /** Asks the page what a bot check would see. Answers as one JSON line via [done]. */
+    fun probe(view: WebView, done: (String) -> Unit) {
+        view.evaluateJavascript(PROBE_SCRIPT) { done(it ?: "null") }
+    }
+
     /** Load the tool live, or its saved copy. */
     fun open(view: WebView, tool: Tool, snapshotFile: File, saved: Boolean) {
         if (saved && snapshotFile.exists()) {
@@ -190,4 +268,60 @@ object ToolWebView {
     fun flushCookies() {
         runCatching { CookieManager.getInstance().flush() }
     }
+
+    private const val BANNER_CSS = """
+        .smartbanner, #smartbanner, .smart-banner, .smartbanner-show,
+        #branch-banner-iframe, .branch-banner, #branch-banner, .branch-journeys-top, .branch-animation,
+        .af-banner, #af-smart-banner, .af-smart-banner,
+        [class*="app-banner" i], [id*="app-banner" i], [class*="appbanner" i], [id*="appbanner" i],
+        [class*="download-app" i], [class*="open-in-app" i], [class*="openinapp" i], [class*="get-the-app" i],
+        [class*="install-app" i], [data-testid*="app-banner" i], [data-testid*="smart-banner" i],
+        .js-app-banner, .mobile-app-banner, .app-download-banner, .app-install-banner,
+        a[href^="intent://"], a[href*="play.google.com/store/apps"], a[href*="apps.apple.com"]
+        { display: none !important; visibility: hidden !important; height: 0 !important; }
+        body.smartbanner-show { margin-top: 0 !important; }
+    """
+
+    private val START_SCRIPT = """
+        (function () {
+          try {
+            if (typeof window.chrome === 'undefined') {
+              window.chrome = { app: { isInstalled: false }, runtime: {}, csi: function () { return {}; }, loadTimes: function () { return {}; } };
+            }
+          } catch (e) {}
+          var css = ${'`'}$BANNER_CSS${'`'};
+          function add() {
+            try {
+              if (document.getElementById('__wt_banner_css')) return;
+              var st = document.createElement('style'); st.id = '__wt_banner_css'; st.textContent = css;
+              (document.head || document.documentElement).appendChild(st);
+            } catch (e) {}
+          }
+          add();
+          document.addEventListener('DOMContentLoaded', add);
+          try { new MutationObserver(add).observe(document.documentElement, { childList: true }); } catch (e) {}
+        })();
+    """.trimIndent()
+
+    private val PROBE_SCRIPT = """
+        (function () {
+          function t(x) { try { return typeof x; } catch (e) { return 'err'; } }
+          var o = {
+            title: document.title, url: location.href,
+            ua: navigator.userAgent,
+            brands: (navigator.userAgentData && navigator.userAgentData.brands) ? navigator.userAgentData.brands.map(function (b) { return b.brand + ' ' + b.version; }) : null,
+            mobile: navigator.userAgentData ? navigator.userAgentData.mobile : null,
+            chrome: t(window.chrome), chromeRuntime: t(window.chrome && window.chrome.runtime),
+            webdriver: navigator.webdriver, plugins: navigator.plugins ? navigator.plugins.length : null,
+            share: t(navigator.share), print: t(window.print), languages: navigator.languages,
+            cookies: navigator.cookieEnabled, dpr: window.devicePixelRatio,
+            inner: [window.innerWidth, window.innerHeight], outer: [window.outerWidth, window.outerHeight],
+            screen: [screen.width, screen.height], touch: navigator.maxTouchPoints,
+            kasada: t(window.KPSDK), nudata: t(window.ndsapi), recaptcha: t(window.grecaptcha),
+            abuse: !!document.querySelector('abuse-component'),
+            text: (document.body && document.body.innerText || '').replace(/\s+/g, ' ').slice(0, 600)
+          };
+          return JSON.stringify(o);
+        })();
+    """.trimIndent()
 }

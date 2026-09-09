@@ -28,12 +28,13 @@ import com.gios.webtools.hw.WheelScroll
 import com.gios.webtools.ui.theme.Dim
 
 /** A tool you might want, offered on the ADD page so the first tools cost nothing to type. */
-data class Starter(val name: String, val url: String, val origins: List<String>, val keep: Boolean)
+data class Starter(val name: String, val url: String, val origins: List<String>, val keep: Boolean, val browser: Boolean = false)
 
 val STARTERS = listOf(
     Starter("Subway status", "https://new.mta.info/status", listOf("mta.info"), keep = false),
     Starter("Weather", "https://forecast.weather.gov/", listOf("weather.gov"), keep = true),
-    Starter("Ticketmaster", "https://www.ticketmaster.com/member/tickets", listOf("ticketmaster.com", "livenation.com"), keep = true),
+    // Ticketmaster's sign-in sits behind Kasada, which refuses every embedded view. Chromium it is.
+    Starter("Ticketmaster", "https://www.ticketmaster.com/", listOf("ticketmaster.com", "livenation.com"), keep = false, browser = true),
     Starter("Wikipedia", "https://en.m.wikipedia.org/", listOf("wikipedia.org", "wikimedia.org"), keep = false),
 )
 

@@ -21,7 +21,8 @@ class PullDown(private val triggerPx: Float, private val slopPx: Float) {
         private set
 
     private var startX = 0f
-    private var startY = 0f
+    var startY = 0f
+        private set
     private var travel = 0f
 
     /** 0..1 of the way to the trigger; clamps at 1 once armed. */

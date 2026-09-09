@@ -1,5 +1,6 @@
 package com.gios.webtools.web
 
+import com.gios.webtools.data.Engine
 import com.gios.webtools.data.Tool
 import com.gios.webtools.data.ToolKind
 import org.json.JSONObject
@@ -11,7 +12,8 @@ import org.json.JSONObject
  *
  *  - A bare `http(s)://` address. The tool is named after the host and allowed only that host.
  *  - JSON from the companion page: `{"wt":1,"n":"Tickets","u":"https://…","o":["ticketmaster.com"],
- *    "keep":true}`. `o` and `keep` are optional; a missing `o` derives from the address.
+ *    "keep":true,"e":"browser"}`. `o`, `keep` and `e` are optional; a missing `o` derives from the
+ *    address; `e` is `builtin` unless it says `browser`.
  *
  * Anything else is not a tool, and the caller says so rather than guessing.
  */
@@ -49,15 +51,20 @@ object QrPayload {
                 .filter { it.isNotEmpty() }
         }.orEmpty().ifEmpty { listOf(host) }
         val withHost = if (OriginRule.allows(origins, host)) origins else origins + host
-        return Result.Ok(build(name, url, withHost, o.optBoolean("keep", false), now))
+        val engine = if (o.optString("e").equals("browser", ignoreCase = true)) Engine.BROWSER else Engine.BUILTIN
+        return Result.Ok(build(name, url, withHost, o.optBoolean("keep", false), now, engine))
     }
 
-    private fun build(name: String, url: String, origins: List<String>, keep: Boolean, now: Long) = Tool(
+    private fun build(
+        name: String, url: String, origins: List<String>, keep: Boolean, now: Long,
+        engine: Engine = Engine.BUILTIN,
+    ) = Tool(
         id = Tool.slug(name) + "-" + (url.hashCode().toUInt().toString(36).take(4)),
         name = name.take(40),
         kind = ToolKind.SITE,
         url = url,
         origins = origins.distinct(),
+        engine = engine,
         keep = keep,
         added = now,
     )

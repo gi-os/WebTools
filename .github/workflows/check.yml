@@ -28,6 +28,8 @@ jobs:
         run: ./gradlew :app:testDebugUnitTest --stacktrace
 
       - name: Compile
+        env:
+          REPORT_TOKEN: ${{ secrets.REPORT_TOKEN }}
         run: ./gradlew :app:assembleDebug --stacktrace
 
       - name: Upload APK

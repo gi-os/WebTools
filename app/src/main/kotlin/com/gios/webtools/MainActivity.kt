@@ -2,8 +2,15 @@ package com.gios.webtools
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -11,6 +18,9 @@ import android.view.KeyEvent
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.browser.customtabs.CustomTabColorSchemeParams
+import androidx.browser.customtabs.CustomTabsClient
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,6 +38,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import com.gios.webtools.data.Engine
 import com.gios.webtools.data.Tool
 import com.gios.webtools.data.ToolKind
 import com.gios.webtools.data.ToolStore
@@ -36,19 +48,27 @@ import com.gios.webtools.hw.LightKey
 import com.gios.webtools.hw.LightKeys
 import com.gios.webtools.hw.LocalWheelBus
 import com.gios.webtools.hw.WheelBus
+import com.gios.webtools.report.PageLog
+import com.gios.webtools.report.Reports
+import com.gios.webtools.report.ShakeGesture
 import com.gios.webtools.ui.AddScreen
 import com.gios.webtools.ui.ExitIndicator
 import com.gios.webtools.ui.InfoScreen
 import com.gios.webtools.ui.ListScreen
+import com.gios.webtools.ui.ReportSheet
 import com.gios.webtools.ui.Starter
 import com.gios.webtools.ui.ToolScreen
 import com.gios.webtools.ui.TutorialScreen
 import com.gios.webtools.ui.theme.WebToolsTheme
+import com.gios.webtools.web.BlockLists
 import com.gios.webtools.web.QrPayload
 import com.gios.webtools.web.ToolWebListener
 import com.gios.webtools.web.ToolWebView
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.DateFormat
 import java.util.Date
 
@@ -80,6 +100,14 @@ class MainActivity : ComponentActivity() {
     private var webView: WebView? = null
     private var openTool: Tool? = null
     private var viewingSaved = false
+    private var pageLog: PageLog? = null
+
+    // Shake to report.
+    private val shake = ShakeGesture()
+    private var sensors: SensorManager? = null
+    private var reportOffer by mutableStateOf(false)
+    private var shot: Bitmap? = null
+    private var probeJson: String? = null
     private var listState = LazyListState()
     private var pageScroll = ScrollState(0)
 
@@ -121,6 +149,24 @@ class MainActivity : ComponentActivity() {
         })
 
         handleIntent(intent)
+
+        sensors = getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+
+        // Housekeeping off the main thread: post anything queued from an earlier shake, and
+        // refresh the ad list once a week.
+        lifecycleScope.launch {
+            val sent = Reports.drain(this@MainActivity)
+            if (sent > 0) say(if (sent == 1) "Sent a saved report" else "Sent $sent saved reports")
+            withContext(Dispatchers.IO) { BlockLists.refreshIfStale(this@MainActivity) }
+        }
+    }
+
+    private val shakeListener = object : SensorEventListener {
+        override fun onSensorChanged(e: SensorEvent) {
+            if (reportOffer) return
+            if (shake.sample(e.values[0], e.values[1], e.values[2], System.currentTimeMillis())) offerReport()
+        }
+        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -176,6 +222,11 @@ class MainActivity : ComponentActivity() {
                                         onOpen = { show(tool) },
                                         onOpenSaved = { show(tool, forceSaved = true) },
                                         onToggleKeep = { store.update(tool.id) { t -> t.copy(keep = !t.keep) } },
+                                        onToggleEngine = {
+                                            store.update(tool.id) { t ->
+                                                t.copy(engine = if (t.engine == Engine.BROWSER) Engine.BUILTIN else Engine.BROWSER)
+                                            }
+                                        },
                                         onRemove = { store.remove(tool.id); go(Screen.Home) },
                                         onBack = { go(Screen.Home) },
                                     )
@@ -188,6 +239,14 @@ class MainActivity : ComponentActivity() {
                         }
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                             ExitIndicator(progress = pullProgress, armed = pullArmed)
+                        }
+                        if (reportOffer) {
+                            ReportSheet(
+                                toolName = openTool?.name,
+                                hasToken = BuildConfig.REPORT_TOKEN.isNotBlank(),
+                                onSend = { note -> sendReport(note) },
+                                onDismiss = { reportOffer = false; shot = null; probeJson = null },
+                            )
                         }
                     }
                 }
@@ -244,11 +303,18 @@ class MainActivity : ComponentActivity() {
 
     private fun show(tool: Tool, forceSaved: Boolean = false) {
         closeTool()
+        if (tool.kind == ToolKind.SITE && tool.engine == Engine.BROWSER) {
+            store.touch(tool.id)
+            openInBrowser(tool)
+            return
+        }
         val snapshot = store.snapshotFile(tool.id)
         val saved = tool.kind == ToolKind.SITE && snapshot.exists() && (forceSaved || !online())
         viewingSaved = saved
         openTool = tool
-        val wv = ToolWebView.create(this, tool, store.dirFor(tool.id), snapshot, listener)
+        val log = PageLog()
+        pageLog = log
+        val wv = ToolWebView.create(this, tool, store.dirFor(tool.id), listener, log)
         webView = wv
         store.touch(tool.id)
         screen = Screen.Page(tool.id, saved)
@@ -269,6 +335,44 @@ class MainActivity : ComponentActivity() {
         webView = null
         openTool = null
         viewingSaved = false
+        pageLog = null
+    }
+
+    /**
+     * The phone's own browser as a Custom Tab: Chromium's cookie jar and Chromium's fingerprint,
+     * which is what a Kasada-gated sign-in (Ticketmaster) insists on. The allowlist and the saved
+     * copy do not apply there; the tool row says so.
+     */
+    private fun openInBrowser(tool: Tool) {
+        val probe = Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com/"))
+        val browsers = packageManager.queryIntentActivities(probe, PackageManager.MATCH_ALL)
+            .map { it.activityInfo.packageName }
+            .filter { it != packageName }
+            .distinct()
+        val pkg = CustomTabsClient.getPackageName(this, browsers, true)
+            ?: browsers.firstOrNull { it.contains("chrom", ignoreCase = true) }
+            ?: browsers.firstOrNull()
+        if (pkg == null) {
+            say("No browser on this phone")
+            return
+        }
+        val tab = CustomTabsIntent.Builder()
+            .setShowTitle(false)
+            .setUrlBarHidingEnabled(true)
+            .setColorScheme(CustomTabsIntent.COLOR_SCHEME_DARK)
+            .setDefaultColorSchemeParams(
+                CustomTabColorSchemeParams.Builder()
+                    .setToolbarColor(android.graphics.Color.BLACK)
+                    .setNavigationBarColor(android.graphics.Color.BLACK)
+                    .build(),
+            )
+            .build()
+        tab.intent.setPackage(pkg)
+        runCatching { tab.launchUrl(this, Uri.parse(tool.url)) }
+            .onFailure {
+                runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(tool.url)).setPackage(pkg)) }
+                    .onFailure { say("Could not open $pkg") }
+            }
     }
 
     private val listener = object : ToolWebListener {
@@ -281,9 +385,15 @@ class MainActivity : ComponentActivity() {
             if (!loading && status == "Loading") status = null
         }
 
+        override fun onRefused(title: String) {
+            val tool = openTool ?: return
+            say("This site refuses the built-in view. Hold ${tool.name} in the list and switch it to Chromium.")
+        }
+
         override fun onLoaded(url: String) {
             val tool = openTool ?: return
             if (status == "Loading") status = null
+            webView?.let { ToolWebView.applyPageFixes(it) }
             // Freshness: a kept site is re-saved after every live visit, once the page has had a
             // moment to finish its own scripts.
             if (tool.kind == ToolKind.SITE && tool.keep && !viewingSaved && url.startsWith("http")) {
@@ -333,6 +443,52 @@ class MainActivity : ComponentActivity() {
             caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 
+    // ---- reporting ----
+
+    /** The picture is taken at the shake, before the sheet is what is on screen. */
+    private fun offerReport() {
+        val tool = openTool
+        val wv = webView
+        Reports.screenshot(this) { bmp ->
+            shot = bmp
+            if (wv != null && tool != null) {
+                ToolWebView.probe(wv) { json ->
+                    probeJson = json
+                    reportOffer = true
+                }
+            } else {
+                probeJson = null
+                reportOffer = true
+            }
+        }
+    }
+
+    private fun sendReport(note: String) {
+        val draft = Reports.compose(
+            context = this,
+            tool = openTool,
+            note = note,
+            pageLog = pageLog?.dump(),
+            probe = probeJson,
+            screenshot = shot,
+            online = online(),
+        )
+        reportOffer = false
+        shot = null
+        probeJson = null
+        Reports.enqueue(this, draft)
+        lifecycleScope.launch {
+            val sent = Reports.drain(this@MainActivity)
+            say(
+                when {
+                    sent > 0 -> "Report sent"
+                    BuildConfig.REPORT_TOKEN.isBlank() -> "Report kept on the phone (no tracker key in this build)"
+                    else -> "Report kept, will send when the tracker answers"
+                },
+            )
+        }
+    }
+
     // ---- adding ----
 
     private fun scan() {
@@ -362,6 +518,7 @@ class MainActivity : ComponentActivity() {
         val id = Tool.slug(s.name)
         val tool = Tool(
             id = id, name = s.name, kind = ToolKind.SITE, url = s.url, origins = s.origins,
+            engine = if (s.browser) Engine.BROWSER else Engine.BUILTIN,
             keep = s.keep, added = System.currentTimeMillis(),
         )
         store.put(tool)
@@ -412,11 +569,15 @@ class MainActivity : ComponentActivity() {
         super.onPause()
         webView?.onPause()
         ToolWebView.flushCookies()
+        sensors?.unregisterListener(shakeListener)
     }
 
     override fun onResume() {
         super.onResume()
         webView?.onResume()
+        sensors?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.let {
+            sensors?.registerListener(shakeListener, it, SensorManager.SENSOR_DELAY_GAME)
+        }
     }
 
     override fun onDestroy() {

@@ -55,6 +55,20 @@ private val PAGES = listOf(
         "Turn the wheel to scroll any page or list. Pressing it is still the flashlight.",
     ),
     Page(
+        "When a site refuses",
+        "Some sign-in pages run a bot check that refuses any embedded view. Ticketmaster's says " +
+            "your browsing was paused.\n\nHold the tool in the list and set Opens in: Chromium. " +
+            "The page then runs in the phone's own browser, with its cookies. The allowlist and " +
+            "the saved copy do not apply there.\n\nAds and \"open in the app\" banners are " +
+            "blocked in the built-in view.",
+    ),
+    Page(
+        "Something wrong? Shake",
+        "Shake the phone three times and it asks to send a report: what the page did, its log, " +
+            "and a picture of the screen. Add a line about what happened if you like. NO sends " +
+            "nothing.",
+    ),
+    Page(
         "No signal",
         "Hold a tool in the list to see its page. Turn on Keeping a copy and the page is saved " +
             "after every visit. With no signal, that copy opens instead.\n\nOpen a ticket at home " +
@@ -63,7 +77,7 @@ private val PAGES = listOf(
 )
 
 /**
- * Five short pages. Wheel or tap moves through them; the last one ends with DONE.
+ * Seven short pages. Wheel or tap moves through them; the last one ends with DONE.
  */
 @Composable
 fun TutorialScreen(scroll: ScrollState, onDone: () -> Unit) {

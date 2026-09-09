@@ -44,7 +44,15 @@ jobs:
         run: ./gradlew :app:testDebugUnitTest --stacktrace
 
       - name: Build APKs
+        env:
+          REPORT_TOKEN: ${{ secrets.REPORT_TOKEN }}
         run: ./gradlew :app:assembleDebug :app:assembleRelease --stacktrace
+
+      # A release with no tracker key collects reports on the phone and sends none. Say so in the
+      # log rather than finding out from an empty tracker.
+      - name: Report key present
+        run: |
+          if [ -z "${{ secrets.REPORT_TOKEN }}" ]; then echo "::warning::REPORT_TOKEN is not set; shake-to-report will queue on the phone and send nothing"; else echo "REPORT_TOKEN present"; fi
 
       - name: Collect APK
         run: |

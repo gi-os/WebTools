@@ -44,7 +44,7 @@
     <input id="name" type="text" placeholder="Tickets" maxlength="40" autocomplete="off">
 
     <label for="url">Address</label>
-    <input id="url" type="url" placeholder="https://www.ticketmaster.com/member/tickets" autocomplete="off" spellcheck="false">
+    <input id="url" type="url" placeholder="https://www.ticketmaster.com/" autocomplete="off" spellcheck="false">
 
     <label for="origins">Stays inside these sites <span style="letter-spacing:0;text-transform:none;color:var(--faint)">— one per line, filled from the address</span></label>
     <textarea id="origins" spellcheck="false"></textarea>
@@ -52,6 +52,11 @@
     <label class="check" style="text-transform:none;letter-spacing:0;font-size:15px;">
       <input id="keep" type="checkbox">
       <span>Keep a copy on the phone<small>The page is saved after every visit and opens with no signal. Turn this on for a ticket or a boarding pass.</small></span>
+    </label>
+
+    <label class="check" style="text-transform:none;letter-spacing:0;font-size:15px;">
+      <input id="browser" type="checkbox">
+      <span>Open in the phone's Chromium instead of the built-in view<small>For sites whose sign-in refuses embedded views (Ticketmaster). Chromium's cookies, Chromium's fingerprint, no allowlist.</small></span>
     </label>
 
     <div class="err" id="err"></div>
@@ -91,6 +96,7 @@
     if (name) o.n = name;
     o.o = origins;
     if ($('keep').checked) o.keep = true;
+    if ($('browser').checked) o.e = 'browser';
     return o;
   }
   function draw() {
@@ -112,7 +118,7 @@
       $('err').textContent = 'Too long for one code. Shorten the name or the list of sites.';
     }
   }
-  ['name', 'url', 'keep'].forEach(function (id) { $(id).addEventListener('input', draw); $(id).addEventListener('change', draw); });
+  ['name', 'url', 'keep', 'browser'].forEach(function (id) { $(id).addEventListener('input', draw); $(id).addEventListener('change', draw); });
   $('origins').addEventListener('input', function () { touchedOrigins = $('origins').value.trim() !== ''; draw(); });
   draw();
 })();

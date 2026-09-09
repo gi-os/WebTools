@@ -3,6 +3,17 @@ package com.gios.webtools.data
 import org.json.JSONArray
 import org.json.JSONObject
 
+/** Which engine shows a site. */
+enum class Engine {
+    /** The app's own WebView: the allowlist, the ad block, the saved copy. */
+    BUILTIN,
+    /**
+     * The phone's Chromium, as a Custom Tab. Its cookie jar, its fingerprint. For sites whose
+     * bot gate (Kasada on Ticketmaster's sign-in) refuses any embedded view.
+     */
+    BROWSER,
+}
+
 /** What a tool is made of. */
 enum class ToolKind {
     /** HTML shipped in the app or installed later, served from its own https origin. */
@@ -18,6 +29,7 @@ enum class ToolKind {
  * @property id       slug, unique, also the bundle's directory name and origin host label
  * @property origins  hosts the tool may navigate to; a host matches when it equals an entry or
  *                    ends with `.entry`
+ * @property engine   built-in view, or the phone's browser
  * @property keep     save an offline copy after every successful live load
  * @property snapshotAt  epoch ms of the last saved copy, 0 when there is none
  */
@@ -27,6 +39,7 @@ data class Tool(
     val kind: ToolKind,
     val url: String,
     val origins: List<String>,
+    val engine: Engine = Engine.BUILTIN,
     val keep: Boolean = false,
     val snapshotAt: Long = 0L,
     val lastUsed: Long = 0L,
@@ -41,7 +54,7 @@ data class Tool(
     /** Second line in the list: where it goes, or that it lives on the phone. */
     fun detail(): String = when (kind) {
         ToolKind.BUNDLE -> "on the phone"
-        ToolKind.SITE -> origins.firstOrNull() ?: hostOf(url)
+        ToolKind.SITE -> (origins.firstOrNull() ?: hostOf(url)) + if (engine == Engine.BROWSER) " · in Chromium" else ""
     }
 
     fun toJson(): JSONObject = JSONObject()
@@ -50,6 +63,7 @@ data class Tool(
         .put("kind", kind.name)
         .put("url", url)
         .put("origins", JSONArray(origins))
+        .put("engine", engine.name)
         .put("keep", keep)
         .put("snapshotAt", snapshotAt)
         .put("lastUsed", lastUsed)
@@ -70,6 +84,8 @@ data class Tool(
                     .getOrDefault(ToolKind.SITE),
                 url = o.optString("url", ""),
                 origins = origins,
+                engine = runCatching { Engine.valueOf(o.optString("engine", "BUILTIN")) }
+                    .getOrDefault(Engine.BUILTIN),
                 keep = o.optBoolean("keep", false),
                 snapshotAt = o.optLong("snapshotAt", 0L),
                 lastUsed = o.optLong("lastUsed", 0L),

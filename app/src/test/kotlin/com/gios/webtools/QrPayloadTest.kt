@@ -89,9 +89,16 @@ class QrPayloadTest {
         assertTrue(Tool.slug("x".repeat(80)).length <= 24)
     }
 
+    @Test fun `e browser selects the Chromium engine`() {
+        val t = ok(QrPayload.parse("""{"n":"Tickets","u":"https://www.ticketmaster.com/","e":"browser"}"""))
+        assertEquals(com.gios.webtools.data.Engine.BROWSER, t.engine)
+        val d = ok(QrPayload.parse("""{"n":"Tickets","u":"https://www.ticketmaster.com/"}"""))
+        assertEquals(com.gios.webtools.data.Engine.BUILTIN, d.engine)
+    }
+
     @Test fun `round trips through json`() {
         val t = ok(QrPayload.parse("""{"n":"Tickets","u":"https://t.example/","o":["t.example"],"keep":true}""", now = 9L))
-            .copy(snapshotAt = 3L, lastUsed = 4L, builtIn = false)
+            .copy(snapshotAt = 3L, lastUsed = 4L, builtIn = false, engine = com.gios.webtools.data.Engine.BROWSER)
         assertEquals(t, Tool.fromJson(t.toJson()))
     }
 }
