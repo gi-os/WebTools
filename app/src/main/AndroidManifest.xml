@@ -4,6 +4,8 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- One short tick per menu row as the pull draws it out. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Only for reading a tool's QR code off a computer screen. -->
     <uses-permission android:name="android.permission.CAMERA" />
 

@@ -1,6 +1,10 @@
 package com.gios.webtools.gesture
 
 import android.content.Context
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.view.MotionEvent
 import android.view.ViewConfiguration
 import android.widget.FrameLayout
@@ -40,6 +44,26 @@ class PullDownFrame(context: Context) : FrameLayout(context) {
 
     private val slop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
     private val gesture = PullDown(slopPx = slop)
+
+    /**
+     * The tick per row. `performHapticFeedback` obeys the system's haptic-feedback switch, which
+     * LightOS leaves off, so nothing was felt. The vibrator itself does not ask; a 30 ms one-shot
+     * is the Light SDK's own tap feel.
+     */
+    private val vibrator: Vibrator? = runCatching {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        }
+    }.getOrNull()
+
+    private fun tick() {
+        val v = vibrator ?: return
+        if (!v.hasVibrator()) return
+        runCatching { v.vibrate(VibrationEffect.createOneShot(30L, VibrationEffect.DEFAULT_AMPLITUDE)) }
+    }
     private var claimed = false
     private var eligible = false
     private var lastPicked = -1
@@ -116,7 +140,7 @@ class PullDownFrame(context: Context) : FrameLayout(context) {
         val picked = if (gesture.stage == PullDown.Stage.TRACKING) Pulley.select(gesture.travel, itemCount(), pitchPx, deadzonePx) else -1
         if (picked != lastPicked) {
             lastPicked = picked
-            if (picked >= 0) performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+            if (picked >= 0) tick()
         }
         onProgress(gesture.travel, picked)
     }

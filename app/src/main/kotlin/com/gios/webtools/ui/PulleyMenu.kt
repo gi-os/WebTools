@@ -19,11 +19,10 @@ import com.gios.webtools.ui.theme.Dim
 import com.gios.webtools.ui.theme.RuleGrey
 
 /**
- * The menu the pull draws out of the top edge, the Sailfish way: rows stacked above the content,
- * revealed by how far the thumb has come, the one under the thumb's reach lit. Letting go on a lit
- * row does it; letting go early does nothing.
- *
- * Rows are given top-to-bottom; the bottom row is the one reached first.
+ * The menu the pull draws out of the top edge. It unrolls downward, the way the thumb moves: a
+ * thin band first, then row one, row two, and so on, each lit as the thumb draws it out. Letting
+ * go on a lit row does it; letting go early does nothing. Past the last row the last row stays
+ * lit, so a long pull always lands there.
  */
 @Composable
 fun PulleyMenu(items: List<String>, travelPx: Float, picked: Int, pitchDp: Float, deadzoneDp: Float) {
@@ -32,9 +31,12 @@ fun PulleyMenu(items: List<String>, travelPx: Float, picked: Int, pitchDp: Float
     val heightDp = with(density) { travelPx.toDp() }.coerceAtMost((deadzoneDp + items.size * pitchDp).dp)
     Box(
         Modifier.fillMaxWidth().height(heightDp).background(Color.Black).clipToBounds(),
-        contentAlignment = Alignment.BottomCenter,
+        contentAlignment = Alignment.TopCenter,
     ) {
         Column(Modifier.fillMaxWidth()) {
+            // The band the thumb crosses first, and the rule where the menu begins.
+            Spacer(Modifier.height((deadzoneDp - 1f).coerceAtLeast(0f).dp))
+            Box(Modifier.fillMaxWidth().height(1.dp).background(RuleGrey))
             items.forEachIndexed { i, label ->
                 val lit = i == picked
                 Box(
@@ -51,9 +53,6 @@ fun PulleyMenu(items: List<String>, travelPx: Float, picked: Int, pitchDp: Float
                     )
                 }
             }
-            // The rule where menu meets content, and the thin band the thumb crosses first.
-            Box(Modifier.fillMaxWidth().height(1.dp).background(RuleGrey))
-            Spacer(Modifier.height((deadzoneDp - 1f).coerceAtLeast(0f).dp))
         }
     }
 }

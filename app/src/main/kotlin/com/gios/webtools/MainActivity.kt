@@ -331,7 +331,7 @@ class MainActivity : ComponentActivity() {
         const val SAVE = "Save a copy"
     }
 
-    /** Rows top-to-bottom; the bottom row is reached first, so the common one goes last. */
+    /** Rows top-to-bottom, unrolling with the pull; TOOLS is last so the longest pull always leaves. */
     private fun pulleyItems(): List<String> {
         val p = page
         return when (screen) {

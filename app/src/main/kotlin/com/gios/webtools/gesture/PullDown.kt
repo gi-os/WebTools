@@ -60,9 +60,10 @@ class PullDown(private val slopPx: Float) {
 }
 
 /**
- * Travel to item. The item nearest the content is reached first, the one at the top of the menu
- * with the longest pull, as on a Sailfish pulley. Below [deadzonePx] nothing is picked and a lift
- * does nothing.
+ * Travel to item. The menu unrolls down from the top edge, so the first row is reached first and
+ * the last row with the longest pull; past the last row the pick stays on it, so a long flick
+ * always lands on the row that matters most. Below [deadzonePx] nothing is picked and a lift does
+ * nothing.
  */
 object Pulley {
     /**
@@ -73,8 +74,7 @@ object Pulley {
         if (count <= 0 || pitchPx <= 0f) return -1
         val units = (travelPx - deadzonePx) / pitchPx - 0.5f
         if (units < 0f) return -1
-        val fromBottom = units.toInt().coerceAtMost(count - 1)
-        return count - 1 - fromBottom
+        return units.toInt().coerceAtMost(count - 1)
     }
 
     /** How tall the drawn menu is for this travel: never past the items, never negative. */

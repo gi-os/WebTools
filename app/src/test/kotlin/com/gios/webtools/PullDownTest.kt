@@ -74,15 +74,15 @@ class PullDownTest {
         assertEquals(-1, Pulley.select(89f, 3, pitch, dead))
     }
 
-    @Test fun `the bottom row is reached first, the top row with the longest pull`() {
-        assertEquals(2, Pulley.select(90f, 3, pitch, dead))
-        assertEquals(2, Pulley.select(189f, 3, pitch, dead))
+    @Test fun `the first row is reached first, the last row with the longest pull`() {
+        assertEquals(0, Pulley.select(90f, 3, pitch, dead))
+        assertEquals(0, Pulley.select(189f, 3, pitch, dead))
         assertEquals(1, Pulley.select(190f, 3, pitch, dead))
-        assertEquals(0, Pulley.select(290f, 3, pitch, dead))
+        assertEquals(2, Pulley.select(290f, 3, pitch, dead))
     }
 
-    @Test fun `past the top row stays on the top row`() {
-        assertEquals(0, Pulley.select(2000f, 3, pitch, dead))
+    @Test fun `past the last row stays on the last row, so a long flick always exits`() {
+        assertEquals(2, Pulley.select(2000f, 3, pitch, dead))
     }
 
     @Test fun `no rows means nothing to pick`() {

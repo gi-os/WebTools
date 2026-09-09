@@ -47,11 +47,12 @@ private val PAGES = listOf(
     ),
     Page(
         "The pull-down menu",
-        "From the top of any page, pull down. A menu draws out of the top edge, one row at a " +
-            "time: the further you pull, the higher the row. Let go on a lit row to do it. Let go " +
-            "early and nothing happens.\n\nTOOLS goes back to the list. SET AS HOME makes the page " +
-            "you are on the tool's start page (KEEP ON SHELF, for a GO page). READER VIEW shows the " +
-            "text only. SAVE A COPY keeps the page as a PDF for when there is no signal.",
+        "From the top of any page, pull down. A menu unrolls from the top edge, one row at a " +
+            "time, each lit as it comes. Let go on a lit row to do it. Let go early and nothing " +
+            "happens. Pull all the way and it is always TOOLS: back to the list.\n\nSAVE A COPY " +
+            "keeps the page as a PDF for when there is no signal. READER VIEW shows the text only. " +
+            "SET AS HOME makes the page you are on the tool's start page (KEEP ON SHELF, for a GO " +
+            "page).",
     ),
     Page(
         "The wheel and the button",

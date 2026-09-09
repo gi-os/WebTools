@@ -12,9 +12,9 @@ fall back to. So 2.0 ships an engine of its own.
   is no switch.
 - **GO.** One field on the shelf: an address, opened once, not kept. No suggestions, no history,
   no search engine behind the field. The shelf is still the front door.
-- **The pull-down menu.** From the top of any page, pull down and a menu draws out of the top
-  edge, one row at a time; let go on a lit row. TOOLS, SET AS HOME (KEEP ON SHELF for a GO page),
-  READER VIEW, SAVE A COPY.
+- **The pull-down menu.** From the top of any page, pull down and a menu unrolls from the top
+  edge, one row at a time, each lit as it comes; let go on a lit row. SAVE A COPY, READER VIEW,
+  SET AS HOME (KEEP ON SHELF for a GO page), and TOOLS last, so the longest pull always leaves.
 - **Set as home.** The page you are on becomes the tool's start page.
 - **Reader view** per tool: text only, for articles.
 - **Saved copies are PDFs** the engine prints, opened in its own viewer with no signal.
@@ -24,6 +24,12 @@ fall back to. So 2.0 ships an engine of its own.
 - The shake report now names the engine and the state of the bridge extension.
 
 ## Fixed since 2.0.5
+
+- The menu unrolled the wrong way: new rows appeared at the top edge while the thumb moved down,
+  and the nearest row, not TOOLS, took the longest pull. Rows now come in under the thumb, top
+  row first, TOOLS last.
+- No tick per row. The system haptic switch is off on LightOS, so the menu asks the vibrator
+  directly: one 30 ms tick as each row lights.
 
 - A page crashed the app the moment it loaded. Gecko's content process shares the app's
   startup code, and the engine was being created twice, once where it must not be. Now the
