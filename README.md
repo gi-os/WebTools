@@ -22,10 +22,14 @@ page. None of those deserved an APK.
 - **Two tools ship inside:** a bill splitter and a unit converter. Both work with no network.
 - **Sites see Chrome.** The WebView drops its `; wv` user agent, its `Android WebView` client hint
   and the `X-Requested-With` header, and gets a `window.chrome` when it has none.
-- **Or the site opens in Chromium.** Some sign-in pages (Ticketmaster runs Kasada, NuData and reCAPTCHA
-  Enterprise) refuse every embedded view. Hold the tool and set *Opens in: Chromium*. The page
-  then runs in the phone's browser, as a Custom Tab, with Chromium's cookies. No allowlist and no
-  saved copy there.
+- **Bring a login from a computer.** Some sign-in pages refuse every embedded view. Ticketmaster's
+  runs reCAPTCHA Enterprise and FingerprintJS before it shows a form, and the Light Phone has no
+  browser to fall back to. So sign in on a computer, paste the page's *Copy as cURL* into the
+  companion page, and scan the code it draws. The cookies travel compressed, in parts if needed,
+  and the tool opens signed in.
+- **Or, on a phone with a browser, the site opens there.** Hold the tool and set *Opens in*. A
+  Custom Tab in the phone's browser, with its cookies. No allowlist and no saved copy there. The
+  switch does not show on a phone without a browser.
 - **No ads, no "open in the app" banners.** Peter Lowe's list plus the deep-link routers
   (branch.io, app.link, onelink.me, AppsFlyer, Adjust), bundled, refreshed weekly. A stylesheet
   hides the banners by the class names the vendors use.
@@ -52,7 +56,11 @@ A code from the companion page is JSON:
 ```
 
 `o` lists the sites the tool may visit. `keep: true` saves a copy after each visit. `e: "browser"`
-opens the tool in Chromium. A bare `https://` address in a code works too.
+opens the tool in the phone's browser. A bare `https://` address in a code works too.
+
+A login code adds `"k":"login"`, a cookie domain `d`, and `c`, which holds a `Cookie:` header
+compressed with deflate-raw and base64url-encoded. A code too big for one image is split:
+`{"wt":1,"k":"part","id":"x7","i":1,"n":3,"p":"…"}`, and the phone joins the parts in order.
 
 ## Three kinds of tool
 
@@ -75,6 +83,14 @@ BrightMarket or Obtainium. The app asks for the camera once, the first time you 
 ## Versions
 
 Versioning is `v1.x.x`. CI stamps the patch number from the build.
+
+### v1.2.0
+
+- Bring a login: cookies from a computer's *Copy as cURL*, packed into one or more codes.
+- The *Opens in* switch shows only when the phone has a browser. Ticketmaster starter is a plain
+  site again.
+- Stock user agent when the WebView cannot rewrite its client hints (Chromium 113 on the LP3).
+- Report lists browsers and WebView features.
 
 ### v1.1.0
 
@@ -109,7 +125,8 @@ This is a plain sideloaded APK, not a Light SDK tool. The SDK sandbox bans
 
 ## Not here
 
-- No credential vault. Logins live in the WebView's cookie jar, which persists across launches.
+- No credential vault. Logins live in the WebView's cookie jar, which persists across launches. A
+  login code is a one-time transfer, not a stored password.
 - No per-tool launcher icons. One icon, one list.
 - Shake-to-report is this app's own small copy, not `light-common`. GitHub Packages has no
   anonymous read, and a new repo has no secrets for it.

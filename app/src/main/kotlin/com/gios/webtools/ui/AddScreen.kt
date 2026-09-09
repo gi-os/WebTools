@@ -33,8 +33,9 @@ data class Starter(val name: String, val url: String, val origins: List<String>,
 val STARTERS = listOf(
     Starter("Subway status", "https://new.mta.info/status", listOf("mta.info"), keep = false),
     Starter("Weather", "https://forecast.weather.gov/", listOf("weather.gov"), keep = true),
-    // Ticketmaster's sign-in sits behind Kasada, which refuses every embedded view. Chromium it is.
-    Starter("Ticketmaster", "https://www.ticketmaster.com/", listOf("ticketmaster.com", "livenation.com"), keep = false, browser = true),
+    // Ticketmaster's sign-in runs reCAPTCHA Enterprise + FingerprintJS and refuses this WebView.
+    // The site itself works; the login comes over from a computer by code (companion page).
+    Starter("Ticketmaster", "https://www.ticketmaster.com/", listOf("ticketmaster.com", "livenation.com"), keep = false),
     Starter("Wikipedia", "https://en.m.wikipedia.org/", listOf("wikipedia.org", "wikimedia.org"), keep = false),
 )
 

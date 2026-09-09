@@ -37,6 +37,7 @@ fun InfoScreen(
     online: Boolean,
     onOpen: () -> Unit,
     onOpenSaved: () -> Unit,
+    browserAvailable: Boolean,
     blockedHost: String?,
     onAllowBlocked: () -> Unit,
     onToggleKeep: () -> Unit,
@@ -50,7 +51,7 @@ fun InfoScreen(
     Column(Modifier.fillMaxSize()) {
         TopBar(tool.name, right = when {
             tool.kind == ToolKind.BUNDLE -> "on the phone"
-            tool.engine == Engine.BROWSER -> "in Chromium"
+            tool.engine == Engine.BROWSER -> "in the browser"
             else -> "site"
         })
         Rule()
@@ -79,15 +80,23 @@ fun InfoScreen(
                         onClick = onAllowBlocked,
                     )
                 }
-                ListRow(
-                    title = if (tool.engine == Engine.BROWSER) "Opens in: Chromium" else "Opens in: built-in view",
-                    detail = if (tool.engine == Engine.BROWSER) {
-                        "The phone's browser, its cookies, its fingerprint. No allowlist, no saved copy."
-                    } else {
-                        "Switch to Chromium when a sign-in page says your browsing was paused."
-                    },
-                    onClick = onToggleEngine,
-                )
+                if (browserAvailable) {
+                    ListRow(
+                        title = if (tool.engine == Engine.BROWSER) "Opens in: the phone's browser" else "Opens in: built-in view",
+                        detail = if (tool.engine == Engine.BROWSER) {
+                            "The phone's browser, its cookies, its fingerprint. No allowlist, no saved copy."
+                        } else {
+                            "Switch when a sign-in page says your browsing was paused."
+                        },
+                        onClick = onToggleEngine,
+                    )
+                } else {
+                    ListRow(
+                        title = "Sign in on a computer",
+                        detail = "This phone has no browser. Sign in there and bring the login over by code: gi-os.github.io/WebTools",
+                        onClick = {},
+                    )
+                }
                 if (tool.engine == Engine.BUILTIN) {
                     if (tool.hasSnapshot) {
                         ListRow(title = "Open the saved copy", detail = "Works with no signal", onClick = onOpenSaved)

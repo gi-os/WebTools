@@ -15,6 +15,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.KeyEvent
+import android.webkit.CookieManager
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
@@ -104,6 +105,20 @@ class MainActivity : ComponentActivity() {
     /** The last host the wall refused, per tool, so the tool's page can offer to allow it. */
     private val lastBlocked = HashMap<String, String>()
 
+    /** A code split over several images: the parts scanned so far. */
+    private var partsId: String? = null
+    private var partsCount = 0
+    private val parts = HashMap<Int, String>()
+
+    /** Packages that answer an https ACTION_VIEW, minus us. Empty on a LightOS phone. */
+    private val browsers: List<String> by lazy {
+        val probe = Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com/"))
+        packageManager.queryIntentActivities(probe, PackageManager.MATCH_ALL)
+            .map { it.activityInfo.packageName }
+            .filter { it != packageName }
+            .distinct()
+    }
+
     // Shake to report.
     private val shake = ShakeGesture()
     private var sensors: SensorManager? = null
@@ -120,7 +135,12 @@ class MainActivity : ComponentActivity() {
     private val scanner = registerForActivityResult(ScanContract()) { result ->
         val text = result.contents
         if (text == null) {
-            screen = Screen.Add("Nothing scanned.")
+            if (partsId != null) {
+                partsId = null; parts.clear(); partsCount = 0
+                screen = Screen.Add("Stopped before all parts were scanned.")
+            } else {
+                screen = Screen.Add("Nothing scanned.")
+            }
         } else {
             addFromText(text)
         }
@@ -223,6 +243,7 @@ class MainActivity : ComponentActivity() {
                                         online = online(),
                                         onOpen = { show(tool) },
                                         onOpenSaved = { show(tool, forceSaved = true) },
+                                        browserAvailable = browsers.isNotEmpty(),
                                         blockedHost = lastBlocked[tool.id],
                                         onAllowBlocked = {
                                             lastBlocked[tool.id]?.let { h ->
@@ -353,16 +374,14 @@ class MainActivity : ComponentActivity() {
      * copy do not apply there; the tool row says so.
      */
     private fun openInBrowser(tool: Tool) {
-        val probe = Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com/"))
-        val browsers = packageManager.queryIntentActivities(probe, PackageManager.MATCH_ALL)
-            .map { it.activityInfo.packageName }
-            .filter { it != packageName }
-            .distinct()
         val pkg = CustomTabsClient.getPackageName(this, browsers, true)
             ?: browsers.firstOrNull { it.contains("chrom", ignoreCase = true) }
             ?: browsers.firstOrNull()
         if (pkg == null) {
-            say("No browser on this phone")
+            // LightOS has no browser. Say so once, then open in the built-in view rather than nothing.
+            store.update(tool.id) { it.copy(engine = Engine.BUILTIN) }
+            say("No browser on this phone. Opened in the built-in view.")
+            store.get(tool.id)?.let { show(it) }
             return
         }
         val tab = CustomTabsIntent.Builder()
@@ -405,7 +424,13 @@ class MainActivity : ComponentActivity() {
 
         override fun onRefused(title: String) {
             val tool = openTool ?: return
-            say("This site refuses the built-in view. Hold ${tool.name} in the list and switch it to Chromium.")
+            say(
+                if (browsers.isEmpty()) {
+                    "This site refuses the built-in view. Sign in on a computer and bring the login over by code."
+                } else {
+                    "This site refuses the built-in view. Hold ${tool.name} in the list and switch it to the phone's browser."
+                },
+            )
         }
 
         override fun onLoaded(url: String) {
@@ -482,11 +507,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun sendReport(note: String) {
+        val extras = "browsers: " + (if (browsers.isEmpty()) "none" else browsers.joinToString(", ")) +
+            "\nwebview: " + ToolWebView.features(this)
         val draft = Reports.compose(
             context = this,
             tool = openTool,
             note = note,
-            pageLog = pageLog?.dump(),
+            pageLog = (pageLog?.dump() ?: "") + "\n" + extras,
             probe = probeJson,
             screenshot = shot,
             online = online(),
@@ -525,11 +552,50 @@ class MainActivity : ComponentActivity() {
         val fixed = if (t.startsWith("{") || t.contains("://")) t else "https://$t"
         when (val r = QrPayload.parse(fixed)) {
             is QrPayload.Result.Ok -> {
+                partsId = null; parts.clear(); partsCount = 0
+                r.login?.let { importLogin(it) }
                 store.put(r.tool)
-                go(Screen.Info(r.tool.id))
+                if (r.login != null) {
+                    say("Signed in as on the computer")
+                    show(r.tool)
+                } else {
+                    go(Screen.Info(r.tool.id))
+                }
+            }
+            is QrPayload.Result.Part -> {
+                if (partsId != r.id) { partsId = r.id; parts.clear(); partsCount = r.count }
+                parts[r.index] = r.text
+                val whole = QrPayload.assemble(parts, partsCount)
+                if (whole != null) {
+                    addFromText(whole)
+                } else {
+                    val next = (1..partsCount).firstOrNull { it !in parts } ?: 1
+                    screen = Screen.Add("Part ${parts.size} of $partsCount read. Scan part $next.")
+                    scanner.launch(
+                        ScanOptions()
+                            .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                            .setBeepEnabled(false)
+                            .setOrientationLocked(true)
+                            .setPrompt("Part $next of $partsCount"),
+                    )
+                }
             }
             is QrPayload.Result.Bad -> screen = Screen.Add(r.why)
         }
+    }
+
+    /**
+     * A sign-in done on a computer, carried over as cookies. Set for the domain, so every host
+     * under it sees them, the way the browser that made them would send them.
+     */
+    private fun importLogin(login: QrPayload.Login) {
+        val cm = CookieManager.getInstance()
+        cm.setAcceptCookie(true)
+        val url = "https://${login.domain}/"
+        for (c in login.cookies) {
+            cm.setCookie(url, "$c; Domain=${login.domain}; Path=/; Secure")
+        }
+        cm.flush()
     }
 
     private fun addStarter(s: Starter) {

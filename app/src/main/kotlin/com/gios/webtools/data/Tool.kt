@@ -54,7 +54,7 @@ data class Tool(
     /** Second line in the list: where it goes, or that it lives on the phone. */
     fun detail(): String = when (kind) {
         ToolKind.BUNDLE -> "on the phone"
-        ToolKind.SITE -> (origins.firstOrNull() ?: hostOf(url)) + if (engine == Engine.BROWSER) " · in Chromium" else ""
+        ToolKind.SITE -> (origins.firstOrNull() ?: hostOf(url)) + if (engine == Engine.BROWSER) " · in the browser" else ""
     }
 
     fun toJson(): JSONObject = JSONObject()

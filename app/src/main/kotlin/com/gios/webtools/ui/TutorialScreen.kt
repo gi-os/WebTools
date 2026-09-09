@@ -55,11 +55,12 @@ private val PAGES = listOf(
         "Turn the wheel to scroll any page or list. Pressing it is still the flashlight.",
     ),
     Page(
-        "When a site refuses",
+        "When a sign-in refuses",
         "Some sign-in pages run a bot check that refuses any embedded view. Ticketmaster's says " +
-            "your browsing was paused.\n\nHold the tool in the list and set Opens in: Chromium. " +
-            "The page then runs in the phone's own browser, with its cookies. The allowlist and " +
-            "the saved copy do not apply there.\n\nAds and \"open in the app\" banners are " +
+            "your browsing was paused, and this phone has no browser to fall back to.\n\nSign in " +
+            "on a computer instead. On gi-os.github.io/WebTools, under Bring a login, paste the " +
+            "page's Copy as cURL from DevTools. Scan the code it draws, in parts if there are " +
+            "several. The tool opens signed in.\n\nAds and \"open in the app\" banners are " +
             "blocked in the built-in view.",
     ),
     Page(

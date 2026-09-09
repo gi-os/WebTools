@@ -96,6 +96,42 @@ class QrPayloadTest {
         assertEquals(com.gios.webtools.data.Engine.BUILTIN, d.engine)
     }
 
+    @Test fun `a login code unpacks cookies and adds the domain`() {
+        // deflate-raw + base64url of "SID=abc123; BID=def456; tm-id=eyJhbGciOi.xyz; LANGUAGE=en-us"
+        val c = "C_Z0sU1MSjY0MrZWcAKyU1LTTEzNrBVKcnUzU2xTK70yktyTM_0z9Soqq6wVfBz93EMd3V1tU_N0S4sB"
+        val r = QrPayload.parse("""{"wt":1,"k":"login","n":"Tickets","u":"https://www.ticketmaster.com/member/tickets","d":".ticketmaster.com","c":"$c"}""")
+        val okr = r as QrPayload.Result.Ok
+        assertEquals("ticketmaster.com", okr.login!!.domain)
+        assertEquals(listOf("SID=abc123", "BID=def456", "tm-id=eyJhbGciOi.xyz", "LANGUAGE=en-us"), okr.login!!.cookies)
+        assertTrue(okr.tool.origins.contains("ticketmaster.com"))
+    }
+
+    @Test fun `a login code with garbage is bad not a crash`() {
+        assertTrue(QrPayload.parse("""{"k":"login","u":"https://x.example/","d":"x.example","c":"!!not-base64!!"}""") is QrPayload.Result.Bad)
+        assertTrue(QrPayload.parse("""{"k":"login","u":"https://x.example/","d":"","c":"AAAA"}""") is QrPayload.Result.Bad)
+    }
+
+    @Test fun `cookie header parsing keeps values with equals signs and drops junk`() {
+        assertEquals(
+            listOf("a=1", "b=x=y", "c="),
+            QrPayload.parseCookieHeader("a=1; b=x=y ;c=; ; nonsense; bad name=1"),
+        )
+    }
+
+    @Test fun `parts assemble in order and only when complete`() {
+        val p1 = QrPayload.parse("""{"wt":1,"k":"part","id":"q","i":1,"n":2,"p":"{\"u\":\"https://x.example/\","}""") as QrPayload.Result.Part
+        val p2 = QrPayload.parse("""{"wt":1,"k":"part","id":"q","i":2,"n":2,"p":"\"n\":\"X\"}"}""") as QrPayload.Result.Part
+        assertEquals(null, QrPayload.assemble(mapOf(1 to p1.text), 2))
+        val joined = QrPayload.assemble(mapOf(1 to p1.text, 2 to p2.text), 2)!!
+        val t = ok(QrPayload.parse(joined))
+        assertEquals("X", t.name)
+        assertEquals(listOf("x.example"), t.origins)
+    }
+
+    @Test fun `a broken part is bad`() {
+        assertTrue(QrPayload.parse("""{"k":"part","id":"q","i":3,"n":2,"p":"x"}""") is QrPayload.Result.Bad)
+    }
+
     @Test fun `round trips through json`() {
         val t = ok(QrPayload.parse("""{"n":"Tickets","u":"https://t.example/","o":["t.example"],"keep":true}""", now = 9L))
             .copy(snapshotAt = 3L, lastUsed = 4L, builtIn = false, engine = com.gios.webtools.data.Engine.BROWSER)

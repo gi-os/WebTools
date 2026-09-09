@@ -206,14 +206,19 @@ object ToolWebView {
      * [Engine.BROWSER][com.gios.webtools.data.Engine.BROWSER]).
      */
     private fun lookLikeChrome(context: Context, s: WebSettings) {
-        runCatching {
+        // On a WebView too old to rewrite its client hints (the LP3 ships 113), the hints keep
+        // saying "Android WebView" whatever the user agent says. A cleaned user agent beside
+        // those hints is a contradiction, and a contradiction is the loudest bot signal of all.
+        // So: both or neither.
+        val canFixHints = runCatching { WebViewFeature.isFeatureSupported(WebViewFeature.USER_AGENT_METADATA) }.getOrDefault(false)
+        if (canFixHints) runCatching {
             val stock = WebSettings.getDefaultUserAgent(context)
             s.userAgentString = stock
                 .replace("; wv", "")
                 .replace(Regex("""Version/\d+(\.\d+)* """), "")
         }
         runCatching {
-            if (WebViewFeature.isFeatureSupported(WebViewFeature.USER_AGENT_METADATA)) {
+            if (canFixHints) {
                 val meta = WebSettingsCompat.getUserAgentMetadata(s)
                 val brands = meta.brandVersionList.map { b ->
                     if (b.brand.contains("WebView", ignoreCase = true)) {
@@ -250,6 +255,16 @@ object ToolWebView {
                 WebViewCompat.addDocumentStartJavaScript(view, START_SCRIPT, setOf("*"))
             }
         }
+    }
+
+    /** What this WebView can do, for the report. */
+    fun features(context: Context): String {
+        fun f(name: String) = runCatching { WebViewFeature.isFeatureSupported(name) }.getOrDefault(false)
+        val ver = runCatching { WebView.getCurrentWebViewPackage()?.let { it.packageName + " " + it.versionName } }.getOrNull() ?: "unknown"
+        return ver + " · uaMetadata=" + f(WebViewFeature.USER_AGENT_METADATA) +
+            " docStart=" + f(WebViewFeature.DOCUMENT_START_SCRIPT) +
+            " xrwAllowList=" + f(WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST) +
+            " ua=" + runCatching { WebSettings.getDefaultUserAgent(context) }.getOrDefault("?")
     }
 
     /** Fallback for a WebView without DOCUMENT_START_SCRIPT: same script, after load. */
