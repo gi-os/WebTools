@@ -2,6 +2,7 @@ package com.gios.webtools
 
 import android.app.Application
 import android.util.Log
+import com.gios.webtools.report.CrashLog
 import com.gios.webtools.web.Bridge
 import org.mozilla.geckoview.ContentBlocking
 import org.mozilla.geckoview.GeckoRuntime
@@ -11,6 +12,10 @@ import org.mozilla.geckoview.GeckoRuntimeSettings
  * Holds the one GeckoRuntime a process may have, and installs the two bundled extensions:
  * uBlock Origin, and our own bridge (a carried-over login, the shake report's probe, banner
  * hiding). Both live in `assets/` and load from `resource://android/assets/…`.
+ *
+ * Gecko runs pages in child processes (`:tab0`, `:gpu`, …) that share this Application class,
+ * so `onCreate` runs in each of them. The runtime belongs to the main process only; creating one
+ * inside a child kills the child, and the page with it. That was 2.0.5's instant crash.
  */
 class WebToolsApp : Application() {
 
@@ -19,8 +24,14 @@ class WebToolsApp : Application() {
 
     val bridge = Bridge()
 
+    /** True in the UI process, false in Gecko's child processes. */
+    val isMainProcess: Boolean get() = Application.getProcessName() == packageName
+
     override fun onCreate() {
         super.onCreate()
+        if (!isMainProcess) return
+        CrashLog.install(this)
+
         val blocking = ContentBlocking.Settings.Builder()
             .antiTracking(ContentBlocking.AntiTracking.DEFAULT or ContentBlocking.AntiTracking.STP)
             .enhancedTrackingProtectionLevel(ContentBlocking.EtpLevel.STRICT)

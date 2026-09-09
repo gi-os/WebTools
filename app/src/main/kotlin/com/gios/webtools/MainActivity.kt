@@ -41,6 +41,7 @@ import com.gios.webtools.hw.LightKey
 import com.gios.webtools.hw.LightKeys
 import com.gios.webtools.hw.LocalWheelBus
 import com.gios.webtools.hw.WheelBus
+import com.gios.webtools.report.CrashLog
 import com.gios.webtools.report.PageLog
 import com.gios.webtools.report.Reports
 import com.gios.webtools.report.ShakeGesture
@@ -161,7 +162,18 @@ class MainActivity : ComponentActivity() {
 
         sensors = getSystemService(Context.SENSOR_SERVICE) as? SensorManager
 
-        // Post anything queued from an earlier shake.
+        // A crash last time files itself: the trace is the report, no sheet to dismiss by accident.
+        CrashLog.take(this)?.let { trace ->
+            Reports.enqueue(
+                this,
+                Reports.compose(
+                    context = this, tool = null, note = "It crashed",
+                    pageLog = trace + "\nengine: GeckoView " + org.mozilla.geckoview.BuildConfig.MOZ_APP_VERSION,
+                    probe = null, screenshot = null, online = online(),
+                ),
+            )
+        }
+        // Post anything queued: a crash, or an earlier shake.
         lifecycleScope.launch {
             val sent = Reports.drain(this@MainActivity)
             if (sent > 0) say(if (sent == 1) "Sent a saved report" else "Sent $sent saved reports")
