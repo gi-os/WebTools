@@ -14,8 +14,9 @@ page. None of those deserved an APK.
   the bottom of the screen. This is the rule that keeps the app from becoming a browser.
 - **Offline copies.** Turn on *Keeping a copy* and the app saves the page after every visit. With
   no signal, the saved copy opens instead. Open a ticket at home and it is on the phone at the gate.
-- **Pull down to leave.** From the top of any page, pull down and let go. A line grows as you
-  pull. When it reads EXIT, lifting your thumb closes the app. Pull sideways and nothing happens.
+- **Pull down to get back.** From the top of any page, pull down and let go. A line grows as you
+  pull. When it reads TOOLS, lifting your thumb returns to the list. Pull sideways and nothing
+  happens.
 - **The wheel scrolls.** Any page, any list. The camera button goes back one page. Press it again
   for the list.
 - **Two tools ship inside:** a bill splitter and a unit converter. Both work with no network.
@@ -61,7 +62,7 @@ Versioning is `v1.x.x`. CI stamps the patch number from the build.
 
 ### v1.0.0
 
-- The list, the tool page, the pull-down exit, wheel scrolling, camera button back.
+- The list, the tool page, the pull-down back to the list, wheel scrolling, camera button back.
 - Site tools with a per-tool allowlist and a blocked-link notice.
 - Saved copies (MHTML) with refresh on every live visit and fallback when a load fails or the
   phone is offline.

@@ -3,12 +3,12 @@ package com.gios.webtools.gesture
 import kotlin.math.abs
 
 /**
- * The exit gesture: pull down from the top of whatever is on screen and let go.
+ * The back-to-the-list gesture: pull down from the top of whatever is on screen and let go.
  *
  * Crossing the trigger arms, the lift commits (BrightControl's rule). Firing at the threshold
  * would make the gesture unabortable; arming lets the thumb come back. A stroke that drifts
  * further sideways than down is cancelled for the rest of the stroke, so a scrub across a page
- * never leaves the app.
+ * never leaves the page.
  *
  * Pure: pixels in, a stage out. The view layer decides when a stroke may even start (content at
  * its top) and draws the indicator from [progress].
@@ -47,7 +47,7 @@ class PullDown(private val triggerPx: Float, private val slopPx: Float) {
         return dy > slopPx
     }
 
-    /** True when the lift should leave the app. Always resets. */
+    /** True when the lift should commit. Always resets. */
     fun up(): Boolean {
         val commit = stage == Stage.ARMED
         reset()

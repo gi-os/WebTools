@@ -108,7 +108,7 @@ class MainActivity : ComponentActivity() {
         val frame = PullDownFrame(this)
         frame.atTop = { contentAtTop() }
         frame.onProgress = { p, armed -> pullProgress = p; pullArmed = armed }
-        frame.onExit = { leave() }
+        frame.onExit = { home() }
 
         val compose = ComposeView(this)
         compose.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
@@ -219,15 +219,24 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** The pull-down landed: leave the app for the Light shell. */
-    private fun leave() {
-        closeTool()
-        finishAndRemoveTask()
+    /** The pull-down landed: back to the list. The list itself has nowhere to pull to. */
+    private fun home() {
+        if (screen is Screen.Tutorial) {
+            getSharedPreferences("webtools", Context.MODE_PRIVATE).edit().putBoolean("tutorialSeen", true).apply()
+        }
+        go(Screen.Home)
     }
 
+    /** Leaving the app is the system's business (home key); the list just closes. */
+    private fun leave() {
+        closeTool()
+        finish()
+    }
+
+    /** The pull-down may start only when the content is at its top, and never on the list. */
     private fun contentAtTop(): Boolean = when (screen) {
         is Screen.Page -> (webView?.scrollY ?: 0) <= 0
-        Screen.Home -> listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+        Screen.Home -> false
         else -> pageScroll.value == 0
     }
 

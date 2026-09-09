@@ -44,11 +44,11 @@ private val PAGES = listOf(
             "Type an address, or take one of the starters.",
     ),
     Page(
-        "Leaving",
-        "Pull down from the top of the page and let go. A line grows as you pull; when it reads " +
-            "EXIT, lifting your thumb closes the app.\n\nLet go early and nothing happens. Pull " +
-            "sideways and it is a scroll, not an exit.\n\nThe camera button steps back one page, " +
-            "then back to the list.",
+        "Getting back",
+        "Pull down from the top of a page and let go. A line grows as you pull. When it reads " +
+            "TOOLS, lifting your thumb returns to the list.\n\nLet go early and nothing happens. " +
+            "Pull sideways and it is a scroll.\n\nThe camera button steps back one page, then to " +
+            "the list. The home key leaves the app, as everywhere.",
     ),
     Page(
         "The wheel",

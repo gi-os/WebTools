@@ -7,7 +7,7 @@ import android.widget.FrameLayout
 
 /**
  * The root view. Watches every stroke; when the content underneath is at its top and the thumb
- * pulls down far enough, the lift leaves the app.
+ * pulls down far enough, the lift goes back to the list.
  *
  * Interception is what makes this work over a WebView and a Compose list alike: once the stroke
  * is claimed the child gets a CANCEL and the frame owns the rest. Strokes that head up, or

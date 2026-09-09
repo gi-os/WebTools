@@ -11,7 +11,8 @@ site, and can keep an offline copy. There is no address bar.
   bottom of the screen.
 - **Saved copies.** Turn on *Keeping a copy* and the app saves the page after every visit. With
   no signal, or when a load fails, the saved copy opens.
-- **Pull down to leave.** Pull from the top of any page and let go once the line reads EXIT.
+- **Pull down to get back.** Pull from the top of any page and let go once the line reads TOOLS.
+  You are on the list again.
 - **The wheel scrolls.** The camera button goes back.
 - **Three ways to add:** scan a code from <https://gi-os.github.io/WebTools/>, type an address,
   or take a starter (subway status, weather, Ticketmaster, Wikipedia).

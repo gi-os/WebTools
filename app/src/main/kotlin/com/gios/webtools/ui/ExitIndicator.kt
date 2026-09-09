@@ -16,8 +16,8 @@ import androidx.compose.ui.unit.dp
 import com.gios.webtools.ui.theme.Dim
 
 /**
- * The line that grows while you pull. Outlined and dim until the lift would commit, then white
- * with the word, so the gesture always says what letting go will do.
+ * The line that grows while you pull. Dim until the lift would commit, then white with the word
+ * TOOLS, so the gesture always says where letting go will land: back on the list.
  */
 @Composable
 fun ExitIndicator(progress: Float, armed: Boolean) {
@@ -36,7 +36,7 @@ fun ExitIndicator(progress: Float, armed: Boolean) {
                 Modifier.fillMaxWidth().background(Color.White).padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("EXIT", style = MaterialTheme.typography.labelLarge, color = Color.Black)
+                Text("TOOLS", style = MaterialTheme.typography.labelLarge, color = Color.Black)
             }
         }
     }
