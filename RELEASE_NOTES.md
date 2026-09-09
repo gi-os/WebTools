@@ -1,28 +1,26 @@
-# WebTools v1.0 — first release
-
-A shelf of web pages for the Light Phone III. Each one opens by itself, stays inside its own
-site, and can keep an offline copy. There is no address bar.
+# WebTools v1.1 — Chromium for the sites that refuse, ad block, shake to report
 
 ## In this release
 
-- **One list.** Tap to open, hold for settings. Two tools ship inside: Split a bill and Convert
-  units. Both work with no network.
-- **Each tool stays inside its site.** Links to other sites are dead ends, with a note at the
-  bottom of the screen.
-- **Saved copies.** Turn on *Keeping a copy* and the app saves the page after every visit. With
-  no signal, or when a load fails, the saved copy opens.
-- **Pull down to get back.** Pull from the top of any page and let go once the line reads TOOLS.
-  You are on the list again.
-- **The wheel scrolls.** The camera button goes back.
-- **Three ways to add:** scan a code from <https://gi-os.github.io/WebTools/>, type an address,
-  or take a starter (subway status, weather, Ticketmaster, Wikipedia).
-- Sites see a phone running Chrome, not an embedded WebView. Ticketmaster's bot check refused the
-  stock WebView with a "browsing activity paused" page.
-- A five-page tutorial on first run, again from HELP.
+- **Opens in: Chromium.** Ticketmaster's sign-in sits behind Kasada, and no embedded view passes
+  it. Hold a tool, switch it to Chromium, and the page runs in the phone's own browser with its
+  own cookies. The Ticketmaster starter comes set that way and starts at the home page.
+- **The built-in view names the gate.** When a page title reads "browsing activity paused", the
+  status line tells you which switch to flip.
+- **Pull down works from anywhere on the page.** The WebView used to claim the stroke first, so
+  the gesture only worked from the top edge. Now a pull from the top band of the screen, or
+  from a page at its top, goes back to the list.
+- **Ad block.** Peter Lowe's list plus the deep-link routers behind "open in the app" banners,
+  bundled and refreshed once a week. A stylesheet hides the banners by the class names the common
+  vendors use.
+- **A site that moved is not a dead end.** tutanota.com redirects to tuta.com. A redirect during the
+  first load is the site's own doing, so the tool follows it and remembers the host. Any other
+  blocked host shows on the tool's page with an Allow row.
+- **Shake to report.** Three shakes raise a sheet. SEND files an issue with the page log, what
+  the page sees (user agent, client hints, window.chrome, Kasada present or not), and a
+  grayscale picture of the screen. NO sends nothing.
 
 ## Known limits
 
-- No shake-to-report yet. It arrives with the `light-common` dependency in a later build.
-- Logins live in the WebView cookie jar. There is no vault.
-- Pages with heavy scripts may not rebuild well from a saved copy. Static pages and ticket
-  views do.
+- In Chromium there is no allowlist and no saved copy. The tool row says "in Chromium".
+- Pages with heavy scripts may not rebuild well from a saved copy. Static pages do.
