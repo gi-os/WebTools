@@ -17,8 +17,10 @@ val reportToken: String = System.getenv("REPORT_TOKEN")
 
 android {
     namespace = "com.gios.webtools"
-    compileSdk = 35
-    buildToolsVersion = "35.0.0"
+    // 36, not 35: GeckoView 148 and the androidx it pulls compile against 36. AGP 8.7 warns and
+    // builds; see android.suppressUnsupportedCompileSdk in gradle.properties.
+    compileSdk = 36
+    buildToolsVersion = "36.0.0"
 
     defaultConfig {
         applicationId = "com.gios.webtools"
@@ -85,8 +87,9 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
 
-    // The engine. Firefox 155 for arm64 only (the LPIII is arm64); ~86 MB of the APK.
-    implementation("org.mozilla.geckoview:geckoview-omni-arm64-v8a:155.0.20260903215306")
+    // The engine. Firefox 148 for arm64 only (the LPIII is arm64); ~86 MB of the APK. 154+ wants
+    // compileSdk 37 and AGP 9.1, which the rest of the family has not moved to.
+    implementation("org.mozilla.geckoview:geckoview-omni-arm64-v8a:148.0.20260309125808")
 
     // The one camera thing in the app: reading a tool's QR code. Same library BrightPasses
     // and LightTip use for their key QR.

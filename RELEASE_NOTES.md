@@ -1,31 +1,31 @@
-# WebTools v1.2 — bring a login from a computer
+# WebTools 2.0 — a browser for the Light Phone, on Firefox's engine
 
-## What was wrong with Ticketmaster
-
-Ticketmaster's sign-in page (identity.ticketmaster.com) runs reCAPTCHA Enterprise and a
-FingerprintJS check before it shows a form. The WebView on this phone (Chromium 113) fails that
-check, and the page turns into the "browsing activity paused" notice. The rest of the site
-works. Kasada guards www and auth, and it let the built-in view through.
-
-The Light Phone has no browser, so "open in Chromium" had nowhere to go. Ticketmaster's own
-Android SDK needs a browser for its login and Google Play Integrity for its barcodes. That road
-ends at the same wall.
+WebTools 1.x was a shelf of pages on the phone's own WebView. That WebView is Chromium 113, and a
+sign-in page that runs a bot check (Ticketmaster does) refuses it. The phone has no browser to
+fall back to. So 2.0 ships an engine of its own.
 
 ## In this release
 
-- **Bring a login.** Sign in on a computer. On the companion page, under *Bring a login*, paste
-  the page's *Copy as cURL* from DevTools. The page packs the cookies into one code or several.
-  Scan them in order and the tool opens signed in. Sessions expire the way they do in a browser;
-  make a new code when the site asks you to sign in again.
-- **No browser, no pretending.** The *Opens in* switch only shows when the phone has a browser.
-  Without one, the tool's page says to sign in on a computer.
-- **The WebView tells one story.** On a WebView too old to rewrite its client hints, the user
-  agent stays stock too. A Chrome user agent beside "Android WebView" hints reads as a lie, and
-  bot checks read it that way.
-- The shake report now lists the phone's browsers and what the WebView supports.
+- **Firefox's engine (GeckoView 148) inside the app.** Sites see a real browser. Nothing here
+  pretends to be anything. The APK is about 90 MB now, and it carries its own engine forward.
+- **uBlock Origin, built in, always on.** Plus Firefox's own strict tracking protection. There
+  is no switch.
+- **GO.** One field on the shelf: an address, opened once, not kept. No suggestions, no history,
+  no search engine behind the field. The shelf is still the front door.
+- **The pull-down menu.** From the top of any page, pull down and a menu draws out of the top
+  edge, one row at a time; let go on a lit row. TOOLS, SET AS HOME (KEEP ON SHELF for a GO page),
+  READER VIEW, SAVE A COPY.
+- **Set as home.** The page you are on becomes the tool's start page.
+- **Reader view** per tool: text only, for articles.
+- **Saved copies are PDFs** the engine prints, opened in its own viewer with no signal.
+- **Bring a login** now sets cookies through a bundled extension. Firefox's engine passes most
+  sign-in checks on its own. The code is for the ones it does not.
+- **Sign out of this site** on the tool's page clears its cookies.
+- The shake report now names the engine and the state of the bridge extension.
 
 ## Known limits
 
-- A login code carries the cookies you had at that moment. A site that re-checks the device
-  can still ask again.
-- Pages with heavy scripts may not rebuild well from a saved copy. Static pages do.
+- First launch is slower: the engine starts and the two extensions install, once.
+- A page that wants a popup gets nothing. A page that wants location, camera, or notifications
+  gets a no.
+- Bundled tools (Split, Convert) do not keep their last values between launches on this engine.

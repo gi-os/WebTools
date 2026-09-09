@@ -1,43 +1,46 @@
 # WebTools
 
-A shelf of web pages for the Light Phone III. Each page opens on its own, stays inside its own
-site, and can keep an offline copy. There is no address bar. It is not a browser.
+A browser for the Light Phone III, built for the Light ethos, on Firefox's engine.
 
-It exists for the pages you need four times a year. A ticket, a train status, a form, a check-in
-page. None of those deserved an APK.
+It has two halves. The **shelf** is a short list of web pages you need now and then: a ticket, a
+train status, a form you fill twice a year. Each opens full screen and stays inside its own site.
+**GO** is one field: an address, opened once, not kept. No feed, no suggestions, no history you
+did not ask for, no tabs.
 
 ## What it does
 
 - **One list.** Tap a name and the page opens full screen. Hold a name to see its settings.
-- **Each tool stays inside its site.** A tool for `ticketmaster.com` can reach
-  `auth.ticketmaster.com` and nothing else. A link to any other site is a dead end, with a note at
-  the bottom of the screen. This is the rule that keeps the app from becoming a browser.
-- **Offline copies.** Turn on *Keeping a copy* and the app saves the page after every visit. With
-  no signal, the saved copy opens instead. Open a ticket at home and it is on the phone at the gate.
-- **Pull down to get back.** From the top of any page, pull down and let go. A line grows as you
-  pull. When it reads TOOLS, lifting your thumb returns to the list. Pull sideways and nothing
-  happens.
-- **The wheel scrolls.** Any page, any list. The camera button goes back one page. Press it again
-  for the list.
+- **GO.** Type an address, open it once. Links may go anywhere. The app keeps nothing unless you
+  pull down and choose *Keep on shelf*.
+- **A shelf page stays inside its site.** A tool for `ticketmaster.com` can reach
+  `auth.ticketmaster.com` and nothing else. A link elsewhere is a dead end, with a note at the
+  bottom of the screen and an *Allow* row on the tool's page.
+- **The pull-down menu.** From the top of any page, pull down. A menu draws out of the top edge,
+  the way a Sailfish pulley does: the further you pull, the higher the row; let go on a lit row.
+  TOOLS goes back to the list. SET AS HOME makes the current page the tool's start page. READER
+  VIEW shows the text only. SAVE A COPY keeps the page as a PDF.
+- **uBlock Origin and strict tracking protection**, always on. "Open in the app" banners are
+  hidden by the class names the vendors use.
+- **Saved copies.** Turn on *Keeping a copy* and the engine prints the page to a PDF after every
+  visit. With no signal, the copy opens instead. Open a ticket at home and it is on the phone at
+  the gate.
+- **The wheel scrolls.** Any page, any list. The camera button goes back one page, then to the
+  list.
 - **Two tools ship inside:** a bill splitter and a unit converter. Both work with no network.
-- **Sites see Chrome.** The WebView drops its `; wv` user agent, its `Android WebView` client hint
-  and the `X-Requested-With` header, and gets a `window.chrome` when it has none.
-- **Bring a login from a computer.** Some sign-in pages refuse every embedded view. Ticketmaster's
-  runs reCAPTCHA Enterprise and FingerprintJS before it shows a form, and the Light Phone has no
-  browser to fall back to. So sign in on a computer, paste the page's *Copy as cURL* into the
-  companion page, and scan the code it draws. The cookies travel compressed, in parts if needed,
-  and the tool opens signed in.
-- **Or, on a phone with a browser, the site opens there.** Hold the tool and set *Opens in*. A
-  Custom Tab in the phone's browser, with its cookies. No allowlist and no saved copy there. The
-  switch does not show on a phone without a browser.
-- **No ads, no "open in the app" banners.** Peter Lowe's list plus the deep-link routers
-  (branch.io, app.link, onelink.me, AppsFlyer, Adjust), bundled, refreshed weekly. A stylesheet
-  hides the banners by the class names the vendors use.
-- **A site that moved is not a dead end.** A server redirect during the first load (tutanota.com to
-  tuta.com) adds the new host to the tool. Any other blocked host appears on the tool's page with
-  an *Allow* row.
+- **Bring a login from a computer.** A few sign-in pages refuse anything but a browser they know.
+  Firefox's engine passes most. For the rest: sign in on a computer, paste the page's *Copy as
+  cURL* into the companion page, scan the code it draws. The cookies travel compressed, in parts
+  if needed, and the tool opens signed in.
 - **Shake to report.** Three shakes, a sheet, SEND. The issue lands in the private tracker with
-  the page log, a probe of what the page sees, and a grayscale screenshot.
+  the page log, what the page sees, and a grayscale screenshot.
+
+## Why an engine of its own
+
+The phone's WebView is Chromium 113 and Light decides when that changes. Bot checks refuse it,
+it cannot rewrite its client hints, and there is no browser on the phone to hand a page to.
+GeckoView is Firefox's engine as a library: current, independent of the phone, and a real browser
+to every site. It costs about 86 MB of the APK and a slower first launch. It buys a page that
+works.
 
 ## Adding a tool
 
@@ -52,11 +55,11 @@ Three ways, all from ADD:
 A code from the companion page is JSON:
 
 ```json
-{"wt":1,"n":"Tickets","u":"https://www.ticketmaster.com/","o":["ticketmaster.com","livenation.com"],"e":"browser"}
+{"wt":1,"n":"Tickets","u":"https://www.ticketmaster.com/","o":["ticketmaster.com","livenation.com"],"keep":true}
 ```
 
-`o` lists the sites the tool may visit. `keep: true` saves a copy after each visit. `e: "browser"`
-opens the tool in the phone's browser. A bare `https://` address in a code works too.
+`o` lists the sites the tool may visit. `keep: true` saves a copy after each visit. A bare
+`https://` address in a code works too.
 
 A login code adds `"k":"login"`, a cookie domain `d`, and `c`, which holds a `Cookie:` header
 compressed with deflate-raw and base64url-encoded. A code too big for one image is split:
@@ -66,14 +69,21 @@ compressed with deflate-raw and base64url-encoded. A code too big for one image 
 
 | Kind | Where it lives | Works with no signal |
 |---|---|---|
-| Bundle | HTML in the app, served from `https://<id>.webtools.internal/` | Always |
+| Bundle | HTML in the app, at `resource://android/assets/builtin/<id>/` | Always |
 | Site | A web address, opened inside its allowlist | No |
-| Site with a saved copy | The same address, plus an MHTML archive on the phone | Yes |
-| Site in Chromium | The same address, opened as a Custom Tab in the phone's browser | No |
+| Site with a saved copy | The same address, plus a PDF the engine printed | Yes |
+| GO page | A typed address, no allowlist, not kept | No |
 
-Bundles get their own https origin through `WebViewAssetLoader`, so each one has its own
-`localStorage` and none can read another's. Every bundle can load `/_light/light.css`, the house
-stylesheet: black ground, white type, one gray, no color, no motion.
+Every bundle loads `light.css`, the house stylesheet: black ground, white type, one gray, no
+color, no motion.
+
+## The bridge extension
+
+GeckoView has no `CookieManager` and no `evaluateJavascript`. `assets/bridge/` is a small
+WebExtension the app talks to over a native-messaging port: it sets a carried-over login
+(`browser.cookies.set`), answers the shake report's probe from inside the page, and hides app
+banners with a content script. uBlock Origin sits beside it in `assets/ublock/`, the Firefox build
+unpacked, installed with `ensureBuiltIn`.
 
 ## Install
 
@@ -83,6 +93,14 @@ BrightMarket or Obtainium. The app asks for the camera once, the first time you 
 ## Versions
 
 Versioning is `v1.x.x`. CI stamps the patch number from the build.
+
+### v2.0.0
+
+- GeckoView 148 replaces the WebView. uBlock Origin and strict tracking protection built in.
+- GO: one address, once. Pull-down pulley menu: Tools, Set as home / Keep on shelf, Reader view,
+  Save a copy.
+- Saved copies are PDFs (`saveAsPdf`). Bring-a-login and the probe go through the bridge extension.
+- Custom Tabs, the `; wv` user-agent work and the host block list are gone with the WebView.
 
 ### v1.2.0
 
@@ -120,12 +138,12 @@ gesture) gate the build. The signing key sits in the repo, on purpose, and count
 Android identifies the app by package plus certificate. The fingerprint check in CI is the
 protection, not a hidden key.
 
-This is a plain sideloaded APK, not a Light SDK tool. The SDK sandbox bans
-`android.content.Context`. A WebView cannot exist without one.
+This is a plain sideloaded APK, not a Light SDK tool. The SDK sandbox allows none of the
+dependencies an engine needs.
 
 ## Not here
 
-- No credential vault. Logins live in the WebView's cookie jar, which persists across launches. A
+- No credential vault. Logins live in the engine's cookie jar, which persists across launches. A
   login code is a one-time transfer, not a stored password.
 - No per-tool launcher icons. One icon, one list.
 - Shake-to-report is this app's own small copy, not `light-common`. GitHub Packages has no
