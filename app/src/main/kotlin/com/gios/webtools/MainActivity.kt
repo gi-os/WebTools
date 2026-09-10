@@ -75,6 +75,7 @@ import com.gios.webtools.web.Portal
 import com.gios.webtools.web.Epub
 import androidx.activity.result.contract.ActivityResultContracts
 import android.app.role.RoleManager
+import android.provider.Settings
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.launch
@@ -281,6 +282,8 @@ class MainActivity : ComponentActivity() {
                                 },
                                 isBrowser = isBrowser,
                                 onAskBrowser = { askBrowserRole() },
+                                passkeys = passkeyState(),
+                                onPasskeys = { say(passkeyAdvice()) },
                                 onWifiSignIn = { signInToWifi(null) },
                                 about = "Web Tools ${BuildConfig.VERSION_NAME} · GeckoView " +
                                     org.mozilla.geckoview.BuildConfig.MOZ_APP_VERSION +
@@ -393,6 +396,7 @@ class MainActivity : ComponentActivity() {
         const val LIBRARY_PACKAGE = "com.lightfastread"
         const val AUTH_PACKAGE = "com.gios.lightauth"
         const val ACTION_PICK_CODE = "com.gios.lightauth.PICK_CODE"
+        const val BITWARDEN_PACKAGE = "com.x8bit.bitwarden"
     }
 
     private object Pull {
@@ -575,6 +579,26 @@ class MainActivity : ComponentActivity() {
         if (runCatching { startActivity(rm.createRequestRoleIntent(RoleManager.ROLE_BROWSER)) }.isFailure) {
             say("The system would not ask. Over ADB: cmd role add-role-holder android.app.role.BROWSER com.gios.webtools")
         }
+    }
+
+    /**
+     * Whether the phone has a passkey provider. `credential_service` is the colon-joined list of
+     * enabled providers; readable, not writable, from here. Bitwarden is the one this family uses.
+     */
+    private fun passkeyState(): String {
+        val cur = runCatching { Settings.Secure.getString(contentResolver, "credential_service") }.getOrNull().orEmpty()
+        return when {
+            cur.contains(BITWARDEN_PACKAGE) -> "Bitwarden answers for them"
+            cur.isNotBlank() -> "Provider: " + cur.substringBefore(':').substringBefore('/')
+            installed(BITWARDEN_PACKAGE) -> "Bitwarden is here but not set as the provider · tap"
+            else -> "No provider on the phone · Bitwarden would do"
+        }
+    }
+
+    private fun passkeyAdvice(): String = if (installed(BITWARDEN_PACKAGE)) {
+        "BrightControl › ADB & grants › GRANT ALL sets Bitwarden as the provider. Or over ADB: settings put secure credential_service $BITWARDEN_PACKAGE/$BITWARDEN_PACKAGE.Autofill.CredentialProviderService"
+    } else {
+        "Install Bitwarden, then GRANT ALL in BrightControl"
     }
 
     private fun signInToWifi(intent: Intent?) {

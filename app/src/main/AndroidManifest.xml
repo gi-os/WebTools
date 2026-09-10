@@ -6,6 +6,11 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- One short tick per menu row as the pull draws it out. -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Passkeys. Firefox's engine asks Android 14's Credential Manager on the site's behalf,
+         which a browser may do only with these two (both "normal" permissions, granted at
+         install). The phone still needs a passkey provider: Bitwarden, set up from BrightControl. -->
+    <uses-permission android:name="android.permission.CREDENTIAL_MANAGER_SET_ORIGIN" />
+    <uses-permission android:name="android.permission.CREDENTIAL_MANAGER_QUERY_CANDIDATE_CREDENTIALS" />
     <!-- Only for reading a tool's QR code off a computer screen. -->
     <uses-permission android:name="android.permission.CAMERA" />
 
@@ -16,6 +21,7 @@
         <package android:name="com.gios.lightpass" />
         <package android:name="com.lightfastread" />
         <package android:name="com.gios.lightauth" />
+        <package android:name="com.x8bit.bitwarden" />
     </queries>
 
     <application

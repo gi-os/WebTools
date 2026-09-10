@@ -1,6 +1,13 @@
-# WebTools 2.6 — the phone's browser, downloads, Wi-Fi sign-in, the library, 2FA
+# WebTools 2.7 — passkeys, and everything 2.6 brought
 
 ## In this release
+
+- **Passkeys.** Firefox's engine asks Android 14's own Credential Manager on the site's behalf,
+  which needs no Google and only two ordinary permissions, declared now. The phone still needs a
+  provider that holds the keys: Bitwarden. BrightControl 4.27's GRANT ALL sets it as the
+  provider (there is no settings page for this on LightOS); Settings › Passkeys here says whether
+  that has happened, and what to do if not. On the first passkey request Bitwarden asks once
+  whether to trust Web Tools as a browser.
 
 - **SEND TO LIBRARY.** A new row in the pull-down on any page. Mozilla's Readability (the code
   behind Reader View) lifts the article out inside the page; the app writes it as a one-chapter

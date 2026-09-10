@@ -46,6 +46,10 @@ DuckDuckGo, Ecosia or Kagi. No feed, no suggestions, no history you did not ask 
   one-chapter EPUB and handed to BrightLibrary. Long reads belong in a reader.
 - **2FA code.** Authenticator is asked for this site's code (its PIN first, if set); the six
   digits are typed into the page's code field, one-digit boxes included. No secret crosses.
+- **Passkeys.** Firefox's engine talks to Android 14's Credential Manager (no Google needed).
+  The phone needs a provider: Bitwarden, set as `credential_service` by BrightControl's GRANT
+  ALL. Bitwarden asks once whether to trust Web Tools as a browser. Settings › Passkeys says
+  where things stand.
 - **The phone's browser.** Settings asks the system to make Web Tools the browser. A link from
   BrightNews, Movie Tickets or a message opens inside the shelf tool whose wall covers it, or as
   a searched page.
@@ -121,6 +125,11 @@ Versioning is `v1.x.x`. CI stamps the patch number from the build.
   `Application.onCreate`, and a runtime inside one killed the page on load.
 - `CrashLog`: an uncaught exception files itself on the next launch.
 - Native libraries compressed in the APK: 108 MB, not 202.
+
+### v2.7.0
+
+- Passkeys: `CREDENTIAL_MANAGER_SET_ORIGIN` and `CREDENTIAL_MANAGER_QUERY_CANDIDATE_CREDENTIALS`
+  declared (both normal). Settings › Passkeys reads `credential_service` and says what to do.
 
 ### v2.6.0
 

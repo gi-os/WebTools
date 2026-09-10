@@ -34,6 +34,8 @@ fun SettingsScreen(
     onCycleGrace: () -> Unit,
     isBrowser: Boolean,
     onAskBrowser: () -> Unit,
+    passkeys: String,
+    onPasskeys: () -> Unit,
     onWifiSignIn: () -> Unit,
     about: String,
     onTutorial: () -> Unit,
@@ -65,6 +67,11 @@ fun SettingsScreen(
                 title = "The phone's browser",
                 detail = if (isBrowser) "Web Tools opens links from other apps" else "Not yet · tap to ask the system",
                 onClick = onAskBrowser,
+            )
+            ListRow(
+                title = "Passkeys",
+                detail = passkeys,
+                onClick = onPasskeys,
             )
             ListRow(
                 title = "Wi-Fi sign-in",
