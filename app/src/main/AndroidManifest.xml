@@ -11,6 +11,11 @@
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
+    <!-- Movie Tickets (BrightPasses) takes the ticket screenshot; named so it is visible on API 30+. -->
+    <queries>
+        <package android:name="com.gios.lightpass" />
+    </queries>
+
     <application
         android:name=".WebToolsApp"
         android:allowBackup="false"
@@ -42,6 +47,17 @@
                 <data android:scheme="webtools" />
             </intent-filter>
         </activity>
+
+        <!-- Hands the ticket screenshot to Movie Tickets by content URI; nothing else is shared. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.gios.webtools.share"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/share_paths" />
+        </provider>
 
         <!-- zxing's scanner activity, locked portrait so it matches the phone. -->
         <activity

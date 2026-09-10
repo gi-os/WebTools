@@ -184,10 +184,11 @@ class GeckoTool(
     }
 
     /** The address to load: bundle, saved copy, reader view, or the site. */
-    fun open(snapshot: File, saved: Boolean) {
+    fun open(snapshot: File, saved: Boolean, resumeAt: String? = null) {
         val url = when {
             tool.kind == ToolKind.BUNDLE -> "resource://android/assets/builtin/${tool.id}/index.html"
             saved && snapshot.exists() -> { viewingSaved = true; Uri.fromFile(snapshot).toString() }
+            resumeAt != null -> resumeAt
             tool.reader -> "about:reader?url=" + Uri.encode(tool.url)
             else -> tool.url
         }

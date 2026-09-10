@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only the one folder the ticket screenshot is written to. -->
+<paths>
+    <cache-path name="tickets" path="tickets/" />
+</paths>

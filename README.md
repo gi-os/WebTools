@@ -19,7 +19,8 @@ DuckDuckGo, Ecosia or Kagi. No feed, no suggestions, no history you did not ask 
   bottom of the screen and an *Allow* row on the tool's page.
 - **The pull-down menu.** From the top of any page, pull down. A menu unrolls from the top edge,
   the way a Sailfish pulley does, one row at a time, each lit as it comes; let go on a lit row.
-  SAVE A COPY keeps the page as a PDF. READER VIEW shows the text only. SET AS HOME makes the
+  SAVE A COPY keeps the page as a PDF. MAKE A TICKET sends a picture of the page to Movie
+  Tickets (BrightPasses) and keeps the page ready for an hour. READER VIEW shows the text only. SET AS HOME makes the
   current page the tool's start page. TOOLS is last, so the longest pull always goes back to the
   list.
 - **uBlock Origin and strict tracking protection**, always on. "Open in the app" banners are
@@ -103,6 +104,13 @@ Versioning is `v1.x.x`. CI stamps the patch number from the build.
   `Application.onCreate`, and a runtime inside one killed the page on load.
 - `CrashLog`: an uncaught exception files itself on the next launch.
 - Native libraries compressed in the APK: 108 MB, not 202.
+
+### v2.2.0
+
+- A page left in the background parks after two minutes and re-opens where it was when you
+  come back. The process leaves five minutes later. This is where the battery went.
+- MAKE A TICKET in the pull-down: a screenshot of the page goes to Movie Tickets, with a
+  `webtools://` address back to the page. That page stays ready for an hour.
 
 ### v2.1.0
 

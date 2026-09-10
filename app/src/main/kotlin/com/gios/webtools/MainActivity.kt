@@ -2,6 +2,11 @@ package com.gios.webtools
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Process
+import androidx.core.content.FileProvider
+import java.io.File
+import java.io.FileOutputStream
 import android.graphics.Bitmap
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -60,6 +65,7 @@ import com.gios.webtools.web.QrPayload
 import com.gios.webtools.web.Search
 import com.gios.webtools.web.SearchEngine
 import com.gios.webtools.web.ToolPageListener
+import com.gios.webtools.web.Warmth
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.launch
@@ -96,6 +102,14 @@ class MainActivity : ComponentActivity() {
 
     private var page by mutableStateOf<GeckoTool?>(null)
     private var engine by mutableStateOf(SearchEngine.DUCKDUCKGO)
+
+    /** A page closed while the app was in the background, to be re-opened where it was. */
+    private data class Parked(val tool: Tool, val url: String?, val saved: Boolean)
+    private var parked: Parked? = null
+    /** Until when the open page is worth keeping warm in the background (MAKE A TICKET sets it). */
+    private var readyUntil = 0L
+    private val parkJob = Runnable { park() }
+    private val exitJob = Runnable { leaveProcess() }
     /** The last host the wall refused, per tool, so the tool's page can offer to allow it. */
     private val lastBlocked = HashMap<String, String>()
 
@@ -197,9 +211,18 @@ class MainActivity : ComponentActivity() {
 
     private fun handleIntent(intent: Intent?) {
         val data = intent?.data ?: return
-        if (data.scheme == "webtools" && data.host == "open") {
-            val id = data.pathSegments.firstOrNull() ?: return
-            store.get(id)?.let { show(it) }
+        if (data.scheme != "webtools") return
+        when (data.host) {
+            "open" -> {
+                val id = data.pathSegments.firstOrNull() ?: return
+                store.get(id)?.let { show(it) }
+            }
+            // webtools://go?u=<address>: a page that was never on the shelf, opened again by
+            // whoever was handed its address (Movie Tickets, from a pass made off it).
+            "go" -> {
+                val u = data.getQueryParameter("u") ?: return
+                if (u.startsWith("http")) lookUp(u)
+            }
         }
     }
 
@@ -325,6 +348,10 @@ class MainActivity : ComponentActivity() {
 
     // ---- the pulley menu ----
 
+    private companion object {
+        const val TICKETS_PACKAGE = "com.gios.lightpass"
+    }
+
     private object Pull {
         const val TOOLS = "Tools"
         const val SET_HOME = "Set as home"
@@ -332,6 +359,7 @@ class MainActivity : ComponentActivity() {
         const val READER_ON = "Reader view"
         const val READER_OFF = "Full page"
         const val SAVE = "Save a copy"
+        const val TICKET = "Make a ticket"
     }
 
     /** Rows top-to-bottom, unrolling with the pull; TOOLS is last so the longest pull always leaves. */
@@ -342,6 +370,7 @@ class MainActivity : ComponentActivity() {
             is Screen.Page -> if (p == null) listOf(Pull.TOOLS) else buildList {
                 if (p.tool.kind == ToolKind.SITE) {
                     add(Pull.SAVE)
+                    if (ticketsInstalled) add(Pull.TICKET)
                     add(if (p.tool.reader) Pull.READER_OFF else Pull.READER_ON)
                     add(if (p.tool.id.isEmpty()) Pull.KEEP else Pull.SET_HOME)
                 }
@@ -356,6 +385,7 @@ class MainActivity : ComponentActivity() {
         val p = page
         when (item) {
             Pull.TOOLS -> home()
+            Pull.TICKET -> makeTicket()
             Pull.SET_HOME -> {
                 val url = p?.currentUrl ?: return
                 if (!url.startsWith("http")) { say("Not a page to set as home"); return }
@@ -407,8 +437,9 @@ class MainActivity : ComponentActivity() {
 
     // ---- tools ----
 
-    private fun show(tool: Tool, forceSaved: Boolean = false) {
+    private fun show(tool: Tool, forceSaved: Boolean = false, resumeAt: String? = null) {
         closeTool()
+        readyUntil = 0L
         val snapshot = store.snapshotFile(tool.id.ifEmpty { "once" })
         val saved = tool.kind == ToolKind.SITE && tool.id.isNotEmpty() && snapshot.exists() && (forceSaved || !online())
         val log = PageLog()
@@ -418,7 +449,7 @@ class MainActivity : ComponentActivity() {
         screen = Screen.Page(tool.id, saved)
         status = if (saved) "Saved copy · " + DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(tool.snapshotAt)) else "Loading"
         if (!saved && !online() && tool.kind == ToolKind.SITE) status = "No signal, and no saved copy yet"
-        p.open(snapshot, saved)
+        p.open(snapshot, saved, resumeAt?.takeIf { it.startsWith("http") || it.startsWith("about:reader") })
     }
 
     /**
@@ -436,6 +467,95 @@ class MainActivity : ComponentActivity() {
             origins = emptyList(), added = System.currentTimeMillis(),
         )
         show(tool)
+    }
+
+    // ---- tickets ----
+
+    private val ticketsInstalled: Boolean by lazy {
+        runCatching { packageManager.getPackageInfo(TICKETS_PACKAGE, 0) }.isSuccess
+    }
+
+    /**
+     * MAKE A TICKET: a screenshot of the page goes to Movie Tickets (BrightPasses), which reads
+     * it the way it reads a photographed stub. The picture carries this page's own address, so
+     * the pass can lead back here, and the page stays warm for an hour: a barcode that rotates
+     * only works on the live page, and the live page is what you will hold up.
+     */
+    private fun makeTicket() {
+        val p = page ?: return
+        val url = p.currentUrl ?: p.tool.url
+        if (!url.startsWith("http")) { say("Not a page to make a ticket from"); return }
+        say("Taking the picture")
+        // A beat, so the pulley has rolled back up before the picture is taken.
+        handler.postDelayed({
+            Reports.screenshot(this) { bmp ->
+                if (bmp == null) { say("Could not take the picture"); return@screenshot }
+                val ok = runCatching { sendTicket(bmp, p.tool, url) }.isSuccess
+                if (ok) {
+                    readyUntil = System.currentTimeMillis() + Warmth.READY_MS
+                    say("Sent to Movie Tickets. This page stays ready for an hour.")
+                } else {
+                    say("Movie Tickets is not on this phone")
+                }
+            }
+        }, 250)
+    }
+
+    private fun sendTicket(bmp: Bitmap, tool: Tool, url: String) {
+        val dir = File(cacheDir, "tickets").apply { mkdirs() }
+        val file = File(dir, "ticket.jpg")
+        FileOutputStream(file).use { bmp.compress(Bitmap.CompressFormat.JPEG, 90, it) }
+        val uri = FileProvider.getUriForFile(this, "com.gios.webtools.share", file)
+        val back = if (tool.id.isNotEmpty()) "webtools://open/${tool.id}" else "webtools://go?u=" + Uri.encode(url)
+        val intent = Intent(Intent.ACTION_SEND)
+            .setPackage(TICKETS_PACKAGE)
+            .setType("image/jpeg")
+            .putExtra(Intent.EXTRA_STREAM, uri)
+            .putExtra(Intent.EXTRA_TEXT, back)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        startActivity(intent)
+    }
+
+    // ---- warmth: what happens to a page when the app leaves the screen ----
+
+    /** Close the page's session but remember where it was, so coming back re-opens it there. */
+    private fun park() {
+        val p = page ?: return
+        val s = screen
+        parked = Parked(p.tool, p.currentUrl, s is Screen.Page && s.saved)
+        closeTool()
+    }
+
+    /**
+     * Let the process go once the page is parked and nothing is being written. Firefox's engine
+     * cannot be shut down and started again inside one process, and an idle engine is still a
+     * few hundred megabytes and a handful of threads; the next launch is a cold one, a second
+     * or two, which is cheaper than a warm one all night.
+     */
+    private fun leaveProcess() {
+        if (page != null || snapshotJob != null) return
+        finishAndRemoveTask()
+        Process.killProcess(Process.myPid())
+    }
+
+    override fun onStop() {
+        super.onStop()
+        val now = System.currentTimeMillis()
+        if (page != null) handler.postDelayed(parkJob, Warmth.parkDelay(now, readyUntil))
+        handler.postDelayed(exitJob, Warmth.exitDelay(now, readyUntil))
+    }
+
+    override fun onStart() {
+        super.onStart()
+        handler.removeCallbacks(parkJob)
+        handler.removeCallbacks(exitJob)
+        parked?.let {
+            parked = null
+            // A ticket page keeps the rest of its hour across the round trip.
+            val keep = readyUntil
+            if (screen is Screen.Page) show(it.tool, it.saved, it.url)
+            readyUntil = keep
+        }
     }
 
     private fun closeTool() {
