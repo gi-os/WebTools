@@ -1,57 +1,31 @@
-# WebTools 2.7 — passkeys, and everything 2.6 brought
+# WebTools 3.0 — a second typeface, folders, and a pull-down that marks its place
 
 ## In this release
 
-- **Passkeys.** Firefox's engine asks Android 14's own Credential Manager on the site's behalf,
-  which needs no Google and only two ordinary permissions, declared now. The phone still needs a
-  provider that holds the keys: Bitwarden. BrightControl 4.27's GRANT ALL sets it as the
-  provider (there is no settings page for this on LightOS); Settings › Passkeys here says whether
-  that has happened, and what to do if not. On the first passkey request Bitwarden asks once
-  whether to trust Web Tools as a browser.
-
-- **SEND TO LIBRARY.** A new row in the pull-down on any page. Mozilla's Readability (the code
-  behind Reader View) lifts the article out inside the page; the app writes it as a one-chapter
-  EPUB and hands it to BrightLibrary, which opens it like any book. Needs BrightLibrary 1.19 or later;
-  the row is only there when the Library is on the phone.
-- **2FA CODE.** Another row. The app asks Authenticator for this site's code: its PIN first if one
-  is set, then a list with the matching account on top. Tap it and the six digits land in the
-  page's code field, one-digit boxes included. No secret leaves Authenticator; one code
-  does, once. Needs BrightAuthenticator 1.3 or later.
-- **The pull-down fits.** Nine rows at 64dp would run off a 472dp screen and put TOOLS out of
-  reach. Rows now shrink when there are many, never under 40dp, so the deepest pull is always
-  the exit.
-
-- **Web Tools can be the browser.** Settings › *The phone's browser* asks the system to hand
-  over the role. From then on any link another app opens (Movie Tickets, BrightNews, a message)
-  lands here. If a shelf tool's wall covers the link, it opens inside that tool, wall and all;
-  otherwise it opens the way a typed address does. If the system has no dialog to offer, the
-  row says the one ADB line that does the same.
-- **Wi-Fi sign-in.** Hotel and café Wi-Fi answers every request with its own page until you fill
-  it in, and this phone had nothing to fill it in with. Settings › *Wi-Fi sign-in* (or the
-  system's own "sign in to network" flow, which now finds this app) binds the app to that
-  network, shows the gate, and asks a known address every four seconds until it answers 204. Then
-  it tells the system the network is good. A VPN makes Android refuse the bind for every app but
-  its own sign-in app; the row says so rather than spinning, and BrightControl knows how to
-  reach that app.
-- **A page can hand you a file.** A link to a PDF, a picture served as an attachment, or a
-  calendar file used to do nothing. Now it saves to the phone under the server's name while the
-  status line counts up.
-- **DOWNLOADS**, on the shelf's bar between ADD and SETTINGS. Newest first: kind, size, day. Tap
-  a PDF, a picture or a text file and the engine shows it, with the pull-down as on any page, so
-  MAKE A TICKET works on a downloaded ticket. Anything else is offered to the phone; if nothing
-  takes it, the app says so. Hold a row and the bar asks once before removing.
-- **The engine switch left the search field.** It was one tap from the wrong result. Settings is
-  the only place it changes.
-
-## Unverified on the phone
-
-Whether Gecko's connections follow `bindProcessToNetwork` (they should: Gecko does its
-networking in this process on Android), and whether LightOS shows the browser-role dialog.
-
-## From 2.3
-
-- Settings, the report chip from light-common, BACK and FORWARD at the top of the pull-down,
-  MAKE A TICKET from the page's own pixels, OPEN THE PAGE back to the live page.
+- **Two typefaces.** Names, sentences and anything a person wrote stay in the phone's own face.
+  Everything *about* them — labels, counts, states, the words on the bar, the numerals down the
+  left of a list — is monospaced and tracked wide. One face had to carry all of it by size alone,
+  and a row of three facts came out as three sizes of the same thing. Now a numeral beside a name
+  reads as an index instead of part of the name.
+- **The pull-down marks the picked row instead of filling it.** A white block behind black text
+  is the loudest thing this app can draw, and it appeared and vanished under the thumb at every
+  row: the menu flashed rather than moved. Rows now keep the page's black, labels sit dim, and the
+  row the thumb has reached turns white with a short bar at the left edge. Each row shows its own
+  number; the lit one shows LET GO, which is the only instruction the gesture ever needed.
+- **Loading leaves the page where it is.** Dimmed, with a two-pixel line filling along the top
+  edge. The words stay put, so when it clears your eye is already in the right place.
+- **Folders.** Tools filed under the same name show as one row — *Tickets · 3 tools* — that opens
+  to its own list, and the folder rises up the shelf when anything in it is opened. Hold a tool,
+  tap PUT IN A FOLDER, type a name once and tap it for the rest. A folder is only a name written
+  on its tools: there is nothing to create, nothing to rename apart from the tools, and nothing
+  left behind when the last one leaves. Ticketmaster, AXS and DICE are starters now, and they
+  arrive filed together.
+- **Every list is numbered**, Add is three numbered steps, a tool's page opens with a grid of
+  label and answer rather than stacked fields, and Settings and Info are one-line facts with
+  their state down the right-hand edge.
+- **The companion page drops Bring a login.** Firefox's engine signs in to the sites that used to
+  need it, and a page that asks for a pasted cURL is a page that asks too much. It has a Folder
+  field now instead.
 
 ## Known limits
 

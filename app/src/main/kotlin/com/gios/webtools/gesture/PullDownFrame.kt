@@ -39,8 +39,8 @@ class PullDownFrame(context: Context) : FrameLayout(context) {
 
     private val density = context.resources.displayMetrics.density
     /** The empty band before the first row becomes live. */
-    val deadzonePx: Float = 36f * density
-    /** One menu row: 64dp, or less when the menu would otherwise run off the screen. */
+    val deadzonePx: Float = 40f * density
+    /** One menu row: 44dp, or less when the menu would otherwise run off the screen. */
     val pitchPx: Float get() = Pulley.pitchFor(itemCount(), height.toFloat().takeIf { it > 0f } ?: (472f * density), deadzonePx, density)
 
     private val slop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()

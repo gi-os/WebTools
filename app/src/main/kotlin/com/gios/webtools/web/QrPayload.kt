@@ -14,7 +14,7 @@ import java.util.zip.Inflater
  *
  *  - A bare `http(s)://` address. The tool is named after the host and allowed only that host.
  *  - JSON from the companion page: `{"wt":1,"n":"Tickets","u":"https://…","o":["ticketmaster.com"],
- *    "keep":true,"e":"browser"}`. `o`, `keep` and `e` are optional; a missing `o` derives from the
+ *    "keep":true,"f":"Tickets"}`. `o`, `keep` and `f` are optional; a missing `o` derives from the
  *    address; `e` is `builtin` unless it says `browser`.
  *  - The same, plus a login: `"k":"login","d":"ticketmaster.com","c":"<deflate-raw, base64url>"`
  *    where the compressed text is a `Cookie:` header (`a=1; b=2`). The cookies are set on `d`
@@ -71,7 +71,8 @@ object QrPayload {
         }.orEmpty().ifEmpty { listOf(host) }
         val withHost = if (OriginRule.allows(origins, host)) origins else origins + host
         val engine = if (o.optString("e").equals("browser", ignoreCase = true)) Engine.BROWSER else Engine.BUILTIN
-        val tool = build(name, url, withHost, o.optBoolean("keep", false), now, engine)
+        val folder = Tool.folderName(o.optString("f"))
+        val tool = build(name, url, withHost, o.optBoolean("keep", false), now, engine, folder)
 
         if (o.optString("k") == "login") {
             val domain = o.optString("d").trim().lowercase().removePrefix(".").removePrefix("www.")
@@ -119,7 +120,7 @@ object QrPayload {
 
     private fun build(
         name: String, url: String, origins: List<String>, keep: Boolean, now: Long,
-        engine: Engine = Engine.BUILTIN,
+        engine: Engine = Engine.BUILTIN, folder: String = "",
     ) = Tool(
         id = Tool.slug(name) + "-" + (url.hashCode().toUInt().toString(36).take(4)),
         name = name.take(40),
@@ -129,6 +130,7 @@ object QrPayload {
         engine = engine,
         keep = keep,
         added = now,
+        folder = folder,
     )
 
     private fun isHttp(s: String) = s.startsWith("http://", ignoreCase = true) || s.startsWith("https://", ignoreCase = true)

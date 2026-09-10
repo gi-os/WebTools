@@ -49,6 +49,9 @@
     <label for="origins">Stays inside these sites <span style="letter-spacing:0;text-transform:none;color:var(--faint)">— one per line, filled from the address</span></label>
     <textarea id="origins" spellcheck="false"></textarea>
 
+    <label for="folder">Folder <span style="letter-spacing:0;text-transform:none;color:var(--faint)">— optional, groups tools on the shelf</span></label>
+    <input id="folder" type="text" placeholder="Tickets" maxlength="24" autocomplete="off">
+
     <label class="check" style="text-transform:none;letter-spacing:0;font-size:15px;">
       <input id="keep" type="checkbox">
       <span>Keep a copy on the phone<small>The page is saved after every visit and opens with no signal. Turn this on for a ticket or a boarding pass.</small></span>
@@ -64,31 +67,6 @@
     </div>
     <p style="margin-top:24px">Web Tools is on <a href="https://brightmarket.gzl.dev/app/com.gios.webtools/">BrightMarket</a> and <a href="https://github.com/gi-os/WebTools">GitHub</a>.</p>
 
-    <h1 style="margin-top:48px" id="login-h">Bring a login from this computer</h1>
-    <h2>Sign in here, carry it over by code.</h2>
-    <p>Web Tools runs Firefox's engine, and most sign-in pages take it for the browser it is. A few (Ticketmaster runs reCAPTCHA Enterprise and a fingerprint check on its login) still refuse. For those, sign in on this computer and hand the phone the session: the cookies travel in the code, compressed, and the tool opens already signed in. Nothing leaves this page.</p>
-    <div class="steps" style="margin-top:8px">
-      <div><b>1</b> &nbsp; Sign in to the site in this browser.</div>
-      <div><b>2</b> &nbsp; Open DevTools (F12 or ⌥⌘I) → <b>Network</b>. Reload the page. Click the first request to the site.</div>
-      <div><b>3</b> &nbsp; Right-click it → <b>Copy</b> → <b>Copy as cURL</b>. Paste below.</div>
-    </div>
-
-    <label for="curl">Pasted cURL (or just the Cookie header)</label>
-    <textarea id="curl" spellcheck="false" placeholder="curl 'https://www.ticketmaster.com/member/tickets' -H 'cookie: SID=…; BID=…' …" style="min-height:90px"></textarea>
-
-    <label for="lname">Name on the phone</label>
-    <input id="lname" type="text" placeholder="Tickets" maxlength="40" autocomplete="off">
-
-    <label for="lurl">Open at</label>
-    <input id="lurl" type="url" placeholder="https://www.ticketmaster.com/member/tickets" autocomplete="off" spellcheck="false">
-
-    <label for="ldomain">Cookie domain</label>
-    <input id="ldomain" type="text" placeholder="ticketmaster.com" autocomplete="off" spellcheck="false">
-
-    <div class="err" id="lerr"></div>
-    <p id="lstat" style="font-size:13px"></p>
-    <div id="lcodes" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:20px"></div>
-    <p style="font-size:13px;margin-top:12px">On the phone: ADD → SCAN, then scan the parts in order. Sessions expire the way they do in a browser; when the site asks you to sign in again, make a new code.</p>
   </section>
 
   <aside class="side">
@@ -118,6 +96,8 @@
     if (name) o.n = name;
     o.o = origins;
     if ($('keep').checked) o.keep = true;
+    var folder = $('folder').value.trim().replace(/\s+/g, ' ').slice(0, 24);
+    if (folder) o.f = folder;
     return o;
   }
   function draw() {
@@ -139,85 +119,10 @@
       $('err').textContent = 'Too long for one code. Shorten the name or the list of sites.';
     }
   }
-  ['name', 'url', 'keep'].forEach(function (id) { $(id).addEventListener('input', draw); $(id).addEventListener('change', draw); });
+  ['name', 'url', 'keep', 'folder'].forEach(function (id) { $(id).addEventListener('input', draw); $(id).addEventListener('change', draw); });
   $('origins').addEventListener('input', function () { touchedOrigins = $('origins').value.trim() !== ''; draw(); });
   draw();
 
-  // ---- Bring a login ----
-  // Cookies out of a pasted "Copy as cURL" (or a bare header), deflate-raw + base64url, then as
-  // many QR codes as it takes. The phone joins the parts and sets the cookies for the domain.
-  var PART = 1200; // characters of payload per code: a denser code than this stops scanning on a phone camera
-  function parseCurl(text) {
-    var out = { cookie: '', url: '' };
-    var t = text.trim();
-    if (!t) return out;
-    var m = t.match(/(?:-H|--header)\s+\$?(['"])(?:cookie|Cookie|COOKIE):\s*([\s\S]*?)\1/);
-    if (m) out.cookie = m[2];
-    if (!out.cookie) { m = t.match(/(?:-b|--cookie)\s+\$?(['"])([\s\S]*?)\1/); if (m) out.cookie = m[2]; }
-    if (!out.cookie && !/^curl\b/i.test(t) && /=/.test(t) && !/\s-H\s/.test(t)) out.cookie = t.replace(/^cookie:\s*/i, '');
-    var u = t.match(/(['"])(https?:\/\/[^'"\s]+)\1/) || t.match(/(https?:\/\/[^\s'"]+)/);
-    if (u) out.url = u[2] || u[1];
-    // Some shells wrap the value in $'…' with \x escapes; undo the common ones.
-    out.cookie = out.cookie.replace(/\\x([0-9a-f]{2})/gi, function (_, h) { return String.fromCharCode(parseInt(h, 16)); }).replace(/\\'/g, "'").trim();
-    return out;
-  }
-  function b64url(bytes) {
-    var s = ''; for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
-    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  }
-  async function deflateRaw(text) {
-    var cs = new CompressionStream('deflate-raw');
-    var w = cs.writable.getWriter(); w.write(new TextEncoder().encode(text)); w.close();
-    var buf = await new Response(cs.readable).arrayBuffer();
-    return new Uint8Array(buf);
-  }
-  function domainOf(host) {
-    // Registrable domain, near enough: drop leading labels down to two, or three for co.uk-style.
-    var parts = host.split('.'); if (parts.length <= 2) return host;
-    var last2 = parts.slice(-2).join('.');
-    if (/^(co|com|org|net|gov|ac|edu)\.[a-z]{2}$/.test(last2) && parts.length >= 3) return parts.slice(-3).join('.');
-    return last2;
-  }
-  var lTouched = { name: false, url: false, domain: false };
-  ['lname', 'lurl', 'ldomain'].forEach(function (id) { $(id).addEventListener('input', function () { lTouched[id.slice(1)] = true; drawLogin(); }); });
-  var seq = 0;
-  async function drawLogin() {
-    var my = ++seq;
-    var box = $('lcodes'); var err = $('lerr'); var stat = $('lstat');
-    err.textContent = ''; stat.textContent = ''; box.innerHTML = '';
-    var parsed = parseCurl($('curl').value);
-    if (!parsed.cookie) { if ($('curl').value.trim()) err.textContent = 'No Cookie header found in that. Copy as cURL from the Network tab, not "Copy link".'; return; }
-    var host = hostOf(parsed.url || ('https://' + ($('ldomain').value || 'x.example')));
-    if (!lTouched.url && parsed.url) $('lurl').value = parsed.url;
-    if (!lTouched.domain && host) $('ldomain').value = domainOf(host);
-    if (!lTouched.name && host) $('lname').value = domainOf(host).split('.')[0].replace(/^./, function (c) { return c.toUpperCase(); });
-    var url = $('lurl').value.trim(); if (url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
-    var domain = $('ldomain').value.trim().toLowerCase().replace(/^\./, '').replace(/^www\./, '');
-    if (!hostOf(url) || !domain) { err.textContent = 'Need an address and a cookie domain.'; return; }
-    if (typeof CompressionStream === 'undefined') { err.textContent = 'This browser cannot compress here. Use Chrome, Edge, or Safari 16.4 or newer.'; return; }
-    var packed = b64url(await deflateRaw(parsed.cookie));
-    if (my !== seq) return;
-    var payload = JSON.stringify({ wt: 1, k: 'login', n: $('lname').value.trim() || domain, u: url, d: domain, o: [domain], c: packed });
-    var frames = [];
-    if (payload.length <= PART + 200) {
-      frames.push(payload);
-    } else {
-      var id = Math.random().toString(36).slice(2, 6); var n = Math.ceil(payload.length / PART);
-      for (var i = 0; i < n; i++) frames.push(JSON.stringify({ wt: 1, k: 'part', id: id, i: i + 1, n: n, p: payload.slice(i * PART, (i + 1) * PART) }));
-    }
-    var cookieCount = parsed.cookie.split(';').filter(function (x) { return x.indexOf('=') > 0; }).length;
-    stat.textContent = cookieCount + ' cookies, ' + parsed.cookie.length + ' characters, packed to ' + packed.length + '. ' + (frames.length === 1 ? 'One code.' : frames.length + ' codes: scan them in order.');
-    frames.forEach(function (f, i) {
-      var wrap = document.createElement('div');
-      var cap = document.createElement('div'); cap.style.cssText = 'font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:#9a9a9a;margin-bottom:6px';
-      cap.textContent = frames.length === 1 ? 'login code' : ('part ' + (i + 1) + ' of ' + frames.length);
-      var code = document.createElement('div'); code.className = 'code';
-      try { var qr = qrcode(0, 'L'); qr.addData(f); qr.make(); code.innerHTML = qr.createImgTag(5, 0); }
-      catch (e) { code.innerHTML = '<span style="color:#000;font-size:12px">too big</span>'; }
-      wrap.appendChild(cap); wrap.appendChild(code); box.appendChild(wrap);
-    });
-  }
-  $('curl').addEventListener('input', drawLogin);
 })();
 </script>
 </body>

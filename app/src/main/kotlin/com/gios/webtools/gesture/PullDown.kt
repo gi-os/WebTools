@@ -83,10 +83,10 @@ object Pulley {
      * The deadzone and a hand's width at the bottom are kept out of the arithmetic.
      */
     fun pitchFor(count: Int, screenPx: Float, deadzonePx: Float, density: Float): Float {
-        val full = 64f * density
+        val full = 44f * density
         if (count <= 0) return full
         val room = screenPx - deadzonePx - 72f * density
-        return (room / count).coerceIn(40f * density, full)
+        return (room / count).coerceIn(34f * density, full)
     }
 
     /** How tall the drawn menu is for this travel: never past the items, never negative. */

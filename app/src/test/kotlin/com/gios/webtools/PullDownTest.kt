@@ -102,10 +102,10 @@ class PulleyPitchTest {
         val d = 2.75f // 1080 px over 392 dp-ish; the LP3 panel is about 472 dp tall
         val screen = 472f * d
         val dead = 36f * d
-        kotlin.test.assertEquals(64f * d, com.gios.webtools.gesture.Pulley.pitchFor(4, screen, dead, d))
-        kotlin.test.assertEquals(64f * d, com.gios.webtools.gesture.Pulley.pitchFor(5, screen, dead, d))
-        val seven = com.gios.webtools.gesture.Pulley.pitchFor(7, screen, dead, d)
-        kotlin.test.assertTrue(seven < 64f * d && seven >= 40f * d, "seven rows: $seven")
-        kotlin.test.assertEquals(40f * d, com.gios.webtools.gesture.Pulley.pitchFor(12, screen, dead, d))
+        kotlin.test.assertEquals(44f * d, com.gios.webtools.gesture.Pulley.pitchFor(4, screen, dead, d))
+        kotlin.test.assertEquals(44f * d, com.gios.webtools.gesture.Pulley.pitchFor(8, screen, dead, d))
+        val eleven = com.gios.webtools.gesture.Pulley.pitchFor(11, screen, dead, d)
+        kotlin.test.assertTrue(eleven < 44f * d && eleven >= 34f * d, "eleven rows: $eleven")
+        kotlin.test.assertEquals(34f * d, com.gios.webtools.gesture.Pulley.pitchFor(20, screen, dead, d))
     }
 }

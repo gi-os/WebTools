@@ -11,7 +11,11 @@ DuckDuckGo, Ecosia or Kagi. No feed, no suggestions, no history you did not ask 
 
 ## What it does
 
-- **One list.** Tap a name and the page opens full screen. Hold a name to see its settings.
+- **One list.** Tap a name and the page opens full screen. Hold a name to see its settings. Each
+  row carries its number, so a tool can be named out loud before it is read.
+- **Folders.** Tools filed under the same name show as one row — *Tickets · 3 tools* — which opens
+  to its own list. A folder is only a name written on its tools: nothing to create, and nothing
+  left behind when the last tool leaves. Ticketmaster, AXS and DICE arrive filed together.
 - **One field.** Type an address and it opens. Type anything else and the search engine gets it:
   DuckDuckGo, Ecosia or Kagi, chosen in Settings. Links may go anywhere. The app keeps nothing unless you pull down and choose
   *Keep on shelf*.
@@ -125,6 +129,16 @@ Versioning is `v1.x.x`. CI stamps the patch number from the build.
   `Application.onCreate`, and a runtime inside one killed the page on load.
 - `CrashLog`: an uncaught exception files itself on the next launch.
 - Native libraries compressed in the APK: 108 MB, not 202.
+
+### v3.0.0
+
+- Two typefaces: the phone's own for content, monospace for every label, numeral and bar word.
+- The pull-down marks the picked row (a short white bar at the left edge, LET GO on the right)
+  instead of filling it white; rows are 44dp with the deadzone at 40dp.
+- Loading is the page, dimmed, with a 2px line along the top edge. The page does not move.
+- Folders (`Tool.folder`, `data/Shelf.kt`), an index down every list, label–value grids on Info,
+  fact rows with their state on the right.
+- The companion page's Bring-a-login section is gone; it has a Folder field instead.
 
 ### v2.7.0
 

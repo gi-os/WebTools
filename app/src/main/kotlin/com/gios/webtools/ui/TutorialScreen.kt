@@ -42,7 +42,10 @@ private val PAGES = listOf(
         "ADD gives you three ways in.\n\nScan a code: open gi-os.github.io/WebTools on a " +
             "computer, fill in the name and address, and point the phone at the code it draws.\n\n" +
             "Type an address, or take one of the starters. A page on the shelf stays inside its own " +
-            "site; links elsewhere are dead ends, unless you allow them.\n\nSETTINGS holds the " +
+            "site; links elsewhere are dead ends, unless you allow them.\n\nHold a tool and PUT IN A " +
+            "FOLDER files it with others: Ticketmaster, AXS and DICE arrive as one row called Tickets, " +
+            "which opens to the three of them. A folder is only a name on its tools, so it goes when " +
+            "the last one leaves.\n\nSETTINGS holds the "
             "search engine, how long a page stays warm in the background, this tutorial, and " +
             "a way to send feedback.\n\nDOWNLOADS holds what a page handed over instead of showing: a " +
             "PDF, a picture, a calendar file. Tap one to open it.",

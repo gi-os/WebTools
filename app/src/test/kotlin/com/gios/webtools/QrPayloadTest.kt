@@ -138,3 +138,21 @@ class QrPayloadTest {
         assertEquals(t, Tool.fromJson(t.toJson()))
     }
 }
+
+class QrFolderTest {
+    @kotlin.test.Test
+    fun aCodeCanNameAFolder() {
+        val r = com.gios.webtools.web.QrPayload.parse(
+            """{"wt":1,"n":"DICE","u":"https://dice.fm/","o":["dice.fm"],"f":"  Tickets  "}""",
+            now = 1L,
+        )
+        val ok = r as com.gios.webtools.web.QrPayload.Result.Ok
+        kotlin.test.assertEquals("Tickets", ok.tool.folder)
+    }
+
+    @kotlin.test.Test
+    fun withoutOneItSitsOnTheShelf() {
+        val r = com.gios.webtools.web.QrPayload.parse("""{"wt":1,"u":"https://dice.fm/"}""", now = 1L)
+        kotlin.test.assertEquals("", (r as com.gios.webtools.web.QrPayload.Result.Ok).tool.folder)
+    }
+}
