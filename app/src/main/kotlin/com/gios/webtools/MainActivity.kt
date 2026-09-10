@@ -477,8 +477,10 @@ class MainActivity : ComponentActivity() {
 
     // ---- tickets ----
 
-    private val ticketsInstalled: Boolean by lazy {
-        runCatching { packageManager.getPackageInfo(TICKETS_PACKAGE, 0) }.isSuccess
+    /** Whether Movie Tickets is on the phone; checked each time the app comes to the front. */
+    private var ticketsInstalled by mutableStateOf(false)
+    private fun checkTickets() {
+        ticketsInstalled = runCatching { packageManager.getPackageInfo(TICKETS_PACKAGE, 0) }.isSuccess
     }
 
     /**
@@ -571,6 +573,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        checkTickets()
         handler.removeCallbacks(parkJob)
         handler.removeCallbacks(exitJob)
         parked?.let {
