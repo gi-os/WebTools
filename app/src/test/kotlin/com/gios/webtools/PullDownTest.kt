@@ -95,3 +95,17 @@ class PullDownTest {
         assertEquals(340f, Pulley.height(900f, 3, pitch, dead), 0f)
     }
 }
+
+class PulleyPitchTest {
+    @kotlin.test.Test
+    fun rowsShrinkOnlyWhenTheyMustAndNeverBelowFloor() {
+        val d = 2.75f // 1080 px over 392 dp-ish; the LP3 panel is about 472 dp tall
+        val screen = 472f * d
+        val dead = 36f * d
+        kotlin.test.assertEquals(64f * d, com.gios.webtools.gesture.Pulley.pitchFor(4, screen, dead, d))
+        kotlin.test.assertEquals(64f * d, com.gios.webtools.gesture.Pulley.pitchFor(5, screen, dead, d))
+        val seven = com.gios.webtools.gesture.Pulley.pitchFor(7, screen, dead, d)
+        kotlin.test.assertTrue(seven < 64f * d && seven >= 40f * d, "seven rows: $seven")
+        kotlin.test.assertEquals(40f * d, com.gios.webtools.gesture.Pulley.pitchFor(12, screen, dead, d))
+    }
+}

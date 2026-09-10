@@ -1,6 +1,18 @@
-# WebTools 2.5 — the phone's browser, downloads, Wi-Fi sign-in
+# WebTools 2.6 — the phone's browser, downloads, Wi-Fi sign-in, the library, 2FA
 
 ## In this release
+
+- **SEND TO LIBRARY.** A new row in the pull-down on any page. Mozilla's Readability (the code
+  behind Reader View) lifts the article out inside the page; the app writes it as a one-chapter
+  EPUB and hands it to BrightLibrary, which opens it like any book. Needs BrightLibrary 1.19 or later;
+  the row is only there when the Library is on the phone.
+- **2FA CODE.** Another row. The app asks Authenticator for this site's code: its PIN first if one
+  is set, then a list with the matching account on top. Tap it and the six digits land in the
+  page's code field, one-digit boxes included. No secret leaves Authenticator; one code
+  does, once. Needs BrightAuthenticator 1.3 or later.
+- **The pull-down fits.** Nine rows at 64dp would run off a 472dp screen and put TOOLS out of
+  reach. Rows now shrink when there are many, never under 40dp, so the deepest pull is always
+  the exit.
 
 - **Web Tools can be the browser.** Settings › *The phone's browser* asks the system to hand
   over the role. From then on any link another app opens (Movie Tickets, BrightNews, a message)

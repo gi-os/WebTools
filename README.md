@@ -42,6 +42,10 @@ DuckDuckGo, Ecosia or Kagi. No feed, no suggestions, no history you did not ask 
 - **Downloads.** A link to a PDF, a picture or a file the page will not show is saved to the
   phone and listed under DOWNLOADS. PDFs, pictures and text open in the engine; anything else
   is offered to the phone. Hold a row to remove it.
+- **Send to library.** The article, lifted out by Readability inside the page, written as a
+  one-chapter EPUB and handed to BrightLibrary. Long reads belong in a reader.
+- **2FA code.** Authenticator is asked for this site's code (its PIN first, if set); the six
+  digits are typed into the page's code field, one-digit boxes included. No secret crosses.
 - **The phone's browser.** Settings asks the system to make Web Tools the browser. A link from
   BrightNews, Movie Tickets or a message opens inside the shelf tool whose wall covers it, or as
   a searched page.
@@ -117,6 +121,16 @@ Versioning is `v1.x.x`. CI stamps the patch number from the build.
   `Application.onCreate`, and a runtime inside one killed the page on load.
 - `CrashLog`: an uncaught exception files itself on the next launch.
 - Native libraries compressed in the APK: 108 MB, not 202.
+
+### v2.6.0
+
+- SEND TO LIBRARY: Readability.js rides in the bridge extension, the article comes back as XHTML,
+  `web/Epub.kt` writes the book, `ACTION_SEND application/epub+zip` to `com.lightfastread`
+  (BrightLibrary 1.19+).
+- 2FA CODE: `com.gios.lightauth.PICK_CODE` for a result (BrightAuthenticator 1.3+), the code
+  typed by the bridge into the page's code field.
+- The pull-down's rows shrink when there are many, so TOOLS is always within reach (never under
+  40dp a row).
 
 ### v2.5.0
 

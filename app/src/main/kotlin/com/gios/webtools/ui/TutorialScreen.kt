@@ -57,7 +57,9 @@ private val PAGES = listOf(
             "keeps the page as a PDF for when there is no signal. READER VIEW shows the text only. " +
             "SET AS HOME makes the page you are on the tool's start page (KEEP ON SHELF, for a page " +
             "you searched for). MAKE A TICKET sends a picture of the page to Movie Tickets and " +
-            "keeps the page ready for an hour.",
+            "keeps the page ready for an hour. SEND TO LIBRARY lifts the article out into the Library " +
+            "as a book. 2FA CODE asks Authenticator for this site's code and types it in. Each row is " +
+            "there only when the app it needs is on the phone.",
     ),
     Page(
         "The wheel and the button",

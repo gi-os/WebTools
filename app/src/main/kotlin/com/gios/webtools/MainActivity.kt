@@ -72,8 +72,9 @@ import com.gios.webtools.web.SearchEngine
 import com.gios.webtools.web.ToolPageListener
 import com.gios.webtools.web.Warmth
 import com.gios.webtools.web.Portal
+import com.gios.webtools.web.Epub
+import androidx.activity.result.contract.ActivityResultContracts
 import android.app.role.RoleManager
-import android.net.ConnectivityManager
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.launch
@@ -107,7 +108,8 @@ class MainActivity : ComponentActivity() {
     private var status by mutableStateOf<String?>(null)
     private var pullTravel by mutableFloatStateOf(0f)
     private var pullPicked by mutableStateOf(-1)
-    private var pulleyPitchDp = 64f
+    private var pullFrame: PullDownFrame? = null
+    private val pulleyPitchDp: Float get() = (pullFrame?.pitchPx ?: (64f * resources.displayMetrics.density)) / resources.displayMetrics.density
     private var pulleyDeadzoneDp = 36f
 
     private var page by mutableStateOf<GeckoTool?>(null)
@@ -179,8 +181,8 @@ class MainActivity : ComponentActivity() {
         frame.onProgress = { travel, picked -> pullTravel = travel; pullPicked = picked }
         frame.onSelect = { index -> pulleyPick(index) }
         val d = resources.displayMetrics.density
-        pulleyPitchDp = frame.pitchPx / d
         pulleyDeadzoneDp = frame.deadzonePx / d
+        pullFrame = frame
 
         val compose = ComposeView(this)
         compose.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
@@ -388,6 +390,9 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val TICKETS_PACKAGE = "com.gios.lightpass"
+        const val LIBRARY_PACKAGE = "com.lightfastread"
+        const val AUTH_PACKAGE = "com.gios.lightauth"
+        const val ACTION_PICK_CODE = "com.gios.lightauth.PICK_CODE"
     }
 
     private object Pull {
@@ -400,6 +405,8 @@ class MainActivity : ComponentActivity() {
         const val TICKET = "Make a ticket"
         const val BACK = "Back"
         const val FORWARD = "Forward"
+        const val LIBRARY = "Send to library"
+        const val CODE = "2FA code"
     }
 
     /** Rows top-to-bottom, unrolling with the pull; TOOLS is last so the longest pull always leaves. */
@@ -415,6 +422,8 @@ class MainActivity : ComponentActivity() {
                 if (p.tool.kind == ToolKind.SITE) {
                     add(Pull.SAVE)
                     if (ticketsInstalled) add(Pull.TICKET)
+                    if (libraryInstalled && p.currentUrl?.startsWith("http") == true) add(Pull.LIBRARY)
+                    if (authInstalled && p.currentUrl?.startsWith("http") == true) add(Pull.CODE)
                     add(if (p.tool.reader) Pull.READER_OFF else Pull.READER_ON)
                     add(if (p.tool.id.isEmpty()) Pull.KEEP else Pull.SET_HOME)
                 }
@@ -432,6 +441,8 @@ class MainActivity : ComponentActivity() {
             Pull.BACK -> p?.goBack()
             Pull.FORWARD -> p?.goForward()
             Pull.TICKET -> makeTicket()
+            Pull.LIBRARY -> sendToLibrary()
+            Pull.CODE -> askForCode()
             Pull.SET_HOME -> {
                 val url = p?.currentUrl ?: return
                 if (!url.startsWith("http")) { say("Not a page to set as home"); return }
@@ -582,10 +593,69 @@ class MainActivity : ComponentActivity() {
 
     // ---- tickets ----
 
-    /** Whether Movie Tickets is on the phone; checked each time the app comes to the front. */
+    /** Which neighbours are on the phone; checked each time the app comes to the front. */
     private var ticketsInstalled by mutableStateOf(false)
-    private fun checkTickets() {
-        ticketsInstalled = runCatching { packageManager.getPackageInfo(TICKETS_PACKAGE, 0) }.isSuccess
+    private var libraryInstalled by mutableStateOf(false)
+    private var authInstalled by mutableStateOf(false)
+    private fun installed(pkg: String) = runCatching { packageManager.getPackageInfo(pkg, 0) }.isSuccess
+    private fun checkNeighbours() {
+        ticketsInstalled = installed(TICKETS_PACKAGE)
+        libraryInstalled = installed(LIBRARY_PACKAGE)
+        authInstalled = installed(AUTH_PACKAGE)
+    }
+
+    // ---- the library ----
+
+    /**
+     * SEND TO LIBRARY: the article, lifted out of the page by Readability inside the page (the
+     * same code as Reader View), written as a one-chapter EPUB and handed to the Library. Long
+     * reads belong in a reader, not a browser.
+     */
+    private fun sendToLibrary() {
+        val p = page ?: return
+        say("Lifting the article out")
+        app.bridge.article { a, why ->
+            if (a == null) { say("Nothing to send: ${why ?: "no article on this page"}"); return@article }
+            val article = Epub.Article(
+                title = a.optString("title"), byline = a.optString("byline"), site = a.optString("site"),
+                url = a.optString("url").ifBlank { p.currentUrl ?: p.tool.url }, lang = a.optString("lang"), xhtml = a.optString("xhtml"),
+            )
+            val dir = File(cacheDir, "books").apply { mkdirs() }
+            val file = File(dir, Tool.slug(article.title.ifBlank { article.site }).ifBlank { "article" }.take(60) + ".epub")
+            val ok = runCatching {
+                Epub.write(article, file)
+                val uri = FileProvider.getUriForFile(this, "com.gios.webtools.share", file)
+                startActivity(
+                    Intent(Intent.ACTION_SEND).setPackage(LIBRARY_PACKAGE).setType("application/epub+zip")
+                        .putExtra(Intent.EXTRA_STREAM, uri).putExtra(Intent.EXTRA_SUBJECT, article.title)
+                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
+                )
+            }
+            say(if (ok.isSuccess) "Sent to the Library" else "The Library is not on this phone")
+        }
+    }
+
+    // ---- 2FA ----
+
+    private val pickCode = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val code = result.data?.getStringExtra("code")
+        if (result.resultCode != RESULT_OK || code.isNullOrBlank()) { say("No code"); return@registerForActivityResult }
+        val account = result.data?.getStringExtra("account").orEmpty()
+        val left = result.data?.getIntExtra("secondsLeft", 0) ?: 0
+        app.bridge.type(code) { typed, why ->
+            say(
+                if (typed) "Typed the code from $account · ${left}s left"
+                else "Code $code from $account · ${why ?: "could not type it"}",
+            )
+        }
+    }
+
+    /** 2FA CODE: ask Authenticator for one code for this site, then type it into the page. */
+    private fun askForCode() {
+        val p = page ?: return
+        val host = Tool.hostOf(p.currentUrl ?: p.tool.url)
+        val intent = Intent(ACTION_PICK_CODE).setPackage(AUTH_PACKAGE).putExtra("site", host)
+        if (runCatching { pickCode.launch(intent) }.isFailure) say("Authenticator is not on this phone, or too old for this")
     }
 
     /**
@@ -678,7 +748,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        checkTickets()
+        checkNeighbours()
         checkBrowserRole()
         handler.removeCallbacks(parkJob)
         handler.removeCallbacks(exitJob)

@@ -4,6 +4,8 @@
 //   setCookies {domain, cookies:[{name,value}]}  -> cookies set for https://<domain>/ with Domain=.<domain>
 //   probe      {}                                 -> what the current page sees (asked of the content script)
 //   clear      {domain}                           -> cookies for the domain removed
+//   article    {}                                 -> the page's article as XHTML (Readability, in the page)
+//   type       {text}                             -> the text typed into the page's code field
 // Nothing here runs unless the app asks.
 
 var port = browser.runtime.connectNative("webtools");
@@ -44,6 +46,17 @@ async function clearCookies(domain) {
   return { removed: all.length };
 }
 
+async function ask(msg) {
+  var tabs = await browser.tabs.query({ active: true });
+  if (!tabs.length) return { ok: false, why: "no active tab" };
+  try {
+    var r = await browser.tabs.sendMessage(tabs[0].id, msg);
+    return Object.assign({ ok: true }, r || {});
+  } catch (e) {
+    return { ok: false, why: String(e && e.message || e) };
+  }
+}
+
 async function probe() {
   var tabs = await browser.tabs.query({ active: true });
   if (!tabs.length) return { probe: null, why: "no active tab" };
@@ -61,6 +74,8 @@ port.onMessage.addListener(async function (m) {
     if (m.type === "setCookies") reply(m.id, Object.assign({ ok: true }, await setCookies(m.domain, m.cookies || [])));
     else if (m.type === "clear") reply(m.id, Object.assign({ ok: true }, await clearCookies(m.domain)));
     else if (m.type === "probe") reply(m.id, Object.assign({ ok: true }, await probe()));
+    else if (m.type === "article") reply(m.id, await ask({ type: "article" }));
+    else if (m.type === "type") reply(m.id, await ask({ type: "type", text: m.text }));
     else if (m.type === "ping") reply(m.id, { ok: true, pong: true });
     else reply(m.id, { ok: false, why: "unknown type " + m.type });
   } catch (e) {

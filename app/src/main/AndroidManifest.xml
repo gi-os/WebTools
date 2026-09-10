@@ -14,6 +14,8 @@
     <!-- Movie Tickets (BrightPasses) takes the ticket screenshot; named so it is visible on API 30+. -->
     <queries>
         <package android:name="com.gios.lightpass" />
+        <package android:name="com.lightfastread" />
+        <package android:name="com.gios.lightauth" />
     </queries>
 
     <application

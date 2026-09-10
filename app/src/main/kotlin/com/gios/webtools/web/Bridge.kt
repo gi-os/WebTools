@@ -52,11 +52,11 @@ class Bridge {
         )
     }
 
-    private fun send(type: String, body: JSONObject, cb: (JSONObject?) -> Unit) {
+    private fun send(type: String, body: JSONObject, timeoutMs: Long = TIMEOUT_MS, cb: (JSONObject?) -> Unit) {
         val id = nextId++
         body.put("id", id).put("type", type)
         pending[id] = cb
-        main.postDelayed({ pending.remove(id)?.invoke(null) }, TIMEOUT_MS)
+        main.postDelayed({ pending.remove(id)?.invoke(null) }, timeoutMs)
         val p = port
         if (p != null) p.postMessage(body) else queue.add(body)
     }
@@ -89,6 +89,22 @@ class Bridge {
                 r.has("probe") && !r.isNull("probe") -> done(r.optJSONObject("probe")?.toString() ?: r.toString())
                 else -> done(r.toString())
             }
+        }
+    }
+
+    /** The page's article as XHTML, lifted out by Readability inside the page; null with a reason. */
+    fun article(done: (article: JSONObject?, why: String?) -> Unit) {
+        send("article", JSONObject(), timeoutMs = 12_000L) { r ->
+            val a = r?.optJSONObject("article")
+            if (a != null) done(a, null) else done(null, r?.optString("why")?.ifBlank { null } ?: "bridge did not answer")
+        }
+    }
+
+    /** Types [text] into the page's code field. */
+    fun type(text: String, done: (typed: Boolean, why: String?) -> Unit) {
+        send("type", JSONObject().put("text", text)) { r ->
+            val ok = r?.optBoolean("typed", false) == true
+            done(ok, if (ok) null else r?.optString("why")?.ifBlank { null } ?: "bridge did not answer")
         }
     }
 

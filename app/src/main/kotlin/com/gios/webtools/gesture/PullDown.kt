@@ -77,6 +77,18 @@ object Pulley {
         return units.toInt().coerceAtMost(count - 1)
     }
 
+    /**
+     * The row height for [count] rows on a screen [screenPx] tall: 64dp when they fit, shrunk
+     * so the last row (TOOLS, the exit) is always within a thumb's reach, never under 40dp.
+     * The deadzone and a hand's width at the bottom are kept out of the arithmetic.
+     */
+    fun pitchFor(count: Int, screenPx: Float, deadzonePx: Float, density: Float): Float {
+        val full = 64f * density
+        if (count <= 0) return full
+        val room = screenPx - deadzonePx - 72f * density
+        return (room / count).coerceIn(40f * density, full)
+    }
+
     /** How tall the drawn menu is for this travel: never past the items, never negative. */
     fun height(travelPx: Float, count: Int, pitchPx: Float, deadzonePx: Float): Float =
         travelPx.coerceIn(0f, deadzonePx + count * pitchPx)
