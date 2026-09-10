@@ -33,9 +33,10 @@ private val PAGES = listOf(
     Page(
         "A shelf, and one field",
         "Web Tools keeps a short list of web pages you need now and then: a ticket, a train " +
-            "status, a form you fill twice a year. That is the shelf.\n\nGO is the other half: one " +
-            "field, one address, opened once and not kept. No suggestions, no history, no search " +
-            "engine standing behind it.\n\nUnderneath is Firefox's engine, so sites see a real " +
+            "status, a form you fill twice a year. That is the shelf.\n\nThe field above it is the " +
+            "other half. Type an address and it opens. Type words and they go to a search engine: " +
+            "DuckDuckGo, Ecosia or Kagi. The engine's name sits at the right end of the field; tap " +
+            "it to switch. Nothing typed there is kept.\n\nUnderneath is Firefox's engine, so sites see a real " +
             "browser. Ads and trackers are blocked by uBlock Origin, always.",
     ),
     Page(
@@ -51,8 +52,8 @@ private val PAGES = listOf(
             "time, each lit as it comes. Let go on a lit row to do it. Let go early and nothing " +
             "happens. Pull all the way and it is always TOOLS: back to the list.\n\nSAVE A COPY " +
             "keeps the page as a PDF for when there is no signal. READER VIEW shows the text only. " +
-            "SET AS HOME makes the page you are on the tool's start page (KEEP ON SHELF, for a GO " +
-            "page).",
+            "SET AS HOME makes the page you are on the tool's start page (KEEP ON SHELF, for a page " +
+            "you searched for).",
     ),
     Page(
         "The wheel and the button",

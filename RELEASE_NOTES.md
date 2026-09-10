@@ -1,40 +1,30 @@
-# WebTools 2.0 — a browser for the Light Phone, on Firefox's engine
+# WebTools 2.1 — a field that searches
 
-WebTools 1.x was a shelf of pages on the phone's own WebView. That WebView is Chromium 113, and a
-sign-in page that runs a bot check (Ticketmaster does) refuses it. The phone has no browser to
-fall back to. So 2.0 ships an engine of its own.
+The shelf holds what you come back to. The field above it is for everything else.
 
 ## In this release
 
-- **Firefox's engine (GeckoView 148) inside the app.** Sites see a real browser. Nothing here
-  pretends to be anything. The APK is about 108 MB now, and it carries its own engine forward.
-- **uBlock Origin, built in, always on.** Plus Firefox's own strict tracking protection. There
-  is no switch.
-- **GO.** One field on the shelf: an address, opened once, not kept. No suggestions, no history,
-  no search engine behind the field. The shelf is still the front door.
-- **The pull-down menu.** From the top of any page, pull down and a menu unrolls from the top
-  edge, one row at a time, each lit as it comes; let go on a lit row. SAVE A COPY, READER VIEW,
-  SET AS HOME (KEEP ON SHELF for a GO page), and TOOLS last, so the longest pull always leaves.
-- **Set as home.** The page you are on becomes the tool's start page.
-- **Reader view** per tool: text only, for articles.
-- **Saved copies are PDFs** the engine prints, opened in its own viewer with no signal.
-- **Bring a login** now sets cookies through a bundled extension. Firefox's engine passes most
-  sign-in checks on its own. The code is for the ones it does not.
-- **Sign out of this site** on the tool's page clears its cookies.
-- The shake report now names the engine and the state of the bridge extension.
+- **One field at the top.** Type an address and it opens. Type words and they go to a search
+  engine. The app keeps nothing you type there unless you pull down and choose KEEP ON SHELF.
+- **Three engines, none of them Google.** DuckDuckGo (its plain HTML results, which suit a
+  small black-and-white panel), Ecosia, and Kagi. The engine's name sits at the right end of the
+  field. Tap it and it is the next one. The choice sticks.
+- **Kagi wants an account.** Sign in once on the phone, or bring the login over by code from
+  gi-os.github.io/WebTools, like any other site.
+- **GO is gone.** The field does what GO did, and more. The action bar is ADD and HELP.
 
-## Fixed since 2.0.5
+## What counts as an address
 
-- The menu unrolled the wrong way: new rows appeared at the top edge while the thumb moved down,
-  and the nearest row, not TOOLS, took the longest pull. Rows now come in under the thumb, top
-  row first, TOOLS last.
-- No tick per row. The system haptic switch is off on LightOS, so the menu asks the vibrator
-  directly: one 30 ms tick as each row lights.
+A scheme (`https://`) settles it. So does one word with a dot and a real ending: `mta.info`,
+`en.wikipedia.org/wiki/Cat`, `localhost`. Anything with a space is a search, so "what is 3.5
+inches in cm" goes to the engine.
 
-- A page crashed the app the moment it loaded. Gecko's content process shares the app's
-  startup code, and the engine was being created twice, once where it must not be. Now the
-  engine starts in the main process only. A crash now files its own report on the next launch.
-- The download was 202 MB with the engine's libraries stored flat. Compressed, it is 108 MB.
+## Still true from 2.0
+
+- Firefox's engine (GeckoView 148), uBlock Origin and strict tracking protection, always on.
+- The pull-down menu: SAVE A COPY, READER VIEW or FULL PAGE, SET AS HOME or KEEP ON SHELF, and
+  TOOLS at the deepest pull.
+- Shake the phone to file a report.
 
 ## Known limits
 

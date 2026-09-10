@@ -47,7 +47,6 @@ import com.gios.webtools.report.Reports
 import com.gios.webtools.report.ShakeGesture
 import com.gios.webtools.ui.AddScreen
 import com.gios.webtools.ui.PulleyMenu
-import com.gios.webtools.ui.GoScreen
 import com.gios.webtools.ui.InfoScreen
 import com.gios.webtools.ui.ListScreen
 import com.gios.webtools.ui.ReportSheet
@@ -58,6 +57,8 @@ import com.gios.webtools.ui.theme.WebToolsTheme
 import com.gios.webtools.web.GeckoTool
 import com.gios.webtools.web.OriginRule
 import com.gios.webtools.web.QrPayload
+import com.gios.webtools.web.Search
+import com.gios.webtools.web.SearchEngine
 import com.gios.webtools.web.ToolPageListener
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
@@ -68,7 +69,6 @@ import java.util.Date
 private sealed class Screen {
     data object Tutorial : Screen()
     data object Home : Screen()
-    data object Go : Screen()
     data class Add(val message: String? = null) : Screen()
     data class Info(val id: String) : Screen()
     data class Page(val id: String, val saved: Boolean) : Screen()
@@ -95,6 +95,7 @@ class MainActivity : ComponentActivity() {
     private var pulleyDeadzoneDp = 36f
 
     private var page by mutableStateOf<GeckoTool?>(null)
+    private var engine by mutableStateOf(SearchEngine.DUCKDUCKGO)
     /** The last host the wall refused, per tool, so the tool's page can offer to allow it. */
     private val lastBlocked = HashMap<String, String>()
 
@@ -138,6 +139,7 @@ class MainActivity : ComponentActivity() {
 
         val prefs = getSharedPreferences("webtools", Context.MODE_PRIVATE)
         if (!prefs.getBoolean("tutorialSeen", false)) screen = Screen.Tutorial
+        engine = SearchEngine.byName(prefs.getString("engine", null))
 
         val frame = PullDownFrame(this)
         frame.atTop = { contentAtTop() }
@@ -216,15 +218,16 @@ class MainActivity : ComponentActivity() {
                             Screen.Home -> ListScreen(
                                 tools = tools.sortedWith(compareByDescending<Tool> { it.lastUsed }.thenBy { it.added }),
                                 listState = listState,
+                                engine = engine,
+                                onSearch = { typed -> lookUp(typed) },
+                                onCycleEngine = {
+                                    engine = engine.next()
+                                    getSharedPreferences("webtools", Context.MODE_PRIVATE).edit().putString("engine", engine.name).apply()
+                                },
                                 onOpen = { show(it) },
                                 onInfo = { go(Screen.Info(it.id)) },
                                 onAdd = { go(Screen.Add()) },
-                                onGo = { go(Screen.Go) },
                                 onHelp = { go(Screen.Tutorial) },
-                            )
-                            Screen.Go -> GoScreen(
-                                onOpen = { typed -> goOnce(typed) },
-                                onBack = { go(Screen.Home) },
                             )
                             is Screen.Add -> AddScreen(
                                 message = s.message,
@@ -419,17 +422,17 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * GO: one address, once. A page with no wall and no row in the list. The browser's half of
-     * the app; the shelf is the other half.
+     * The field at the top: an address opens, words go to the engine. Either way it is one page
+     * with no wall and no row in the list, kept only if the pull-down says so.
      */
-    private fun goOnce(typed: String) {
+    private fun lookUp(typed: String) {
         val t = typed.trim()
         if (t.isEmpty()) return
-        val url = if (t.contains("://")) t else "https://$t"
+        val url = Search.resolve(t, engine)
         val host = Tool.hostOf(url)
         if (host.isEmpty()) { say("Not an address"); return }
         val tool = Tool(
-            id = "", name = host, kind = ToolKind.SITE, url = url,
+            id = "", name = if (Search.isAddress(t)) host else t.take(40), kind = ToolKind.SITE, url = url,
             origins = emptyList(), added = System.currentTimeMillis(),
         )
         show(tool)

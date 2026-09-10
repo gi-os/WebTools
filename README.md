@@ -4,14 +4,16 @@ A browser for the Light Phone III, built for the Light ethos, on Firefox's engin
 
 It has two halves. The **shelf** is a short list of web pages you need now and then: a ticket, a
 train status, a form you fill twice a year. Each opens full screen and stays inside its own site.
-**GO** is one field: an address, opened once, not kept. No feed, no suggestions, no history you
-did not ask for, no tabs.
+The **field** at the top is the other. Type an address and it opens. Type words and they go to
+DuckDuckGo, Ecosia or Kagi. No feed, no suggestions, no history you did not ask for, no tabs.
 
 ## What it does
 
 - **One list.** Tap a name and the page opens full screen. Hold a name to see its settings.
-- **GO.** Type an address, open it once. Links may go anywhere. The app keeps nothing unless you
-  pull down and choose *Keep on shelf*.
+- **One field.** Type an address and it opens. Type anything else and the search engine gets it.
+  The engine's name sits at the right end of the field. Tap it to switch between DuckDuckGo,
+  Ecosia and Kagi. Links may go anywhere. The app keeps nothing unless you pull down and choose
+  *Keep on shelf*.
 - **A shelf page stays inside its site.** A tool for `ticketmaster.com` can reach
   `auth.ticketmaster.com` and nothing else. A link elsewhere is a dead end, with a note at the
   bottom of the screen and an *Allow* row on the tool's page.
@@ -73,7 +75,7 @@ compressed with deflate-raw and base64url-encoded. A code too big for one image 
 | Bundle | HTML in the app, at `resource://android/assets/builtin/<id>/` | Always |
 | Site | A web address, opened inside its allowlist | No |
 | Site with a saved copy | The same address, plus a PDF the engine printed | Yes |
-| GO page | A typed address, no allowlist, not kept | No |
+| Searched page | A typed address or a search result, no allowlist, not kept | No |
 
 Every bundle loads `light.css`, the house stylesheet: black ground, white type, one gray, no
 color, no motion.
@@ -101,6 +103,11 @@ Versioning is `v1.x.x`. CI stamps the patch number from the build.
   `Application.onCreate`, and a runtime inside one killed the page on load.
 - `CrashLog`: an uncaught exception files itself on the next launch.
 - Native libraries compressed in the APK: 108 MB, not 202.
+
+### v2.1.0
+
+- A search field at the top of the shelf replaces GO. Addresses open. Words go to DuckDuckGo,
+  Ecosia or Kagi. Tap the engine's name to switch, and the choice sticks.
 
 ### v2.0.0
 
