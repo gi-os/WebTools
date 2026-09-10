@@ -63,8 +63,8 @@ private val PAGES = listOf(
     ),
     Page(
         "The wheel",
-        "Turn it to scroll. Press it for the flashlight, as always.\n\nThe camera button goes back " +
-            "one page, then to the shelf.",
+        "Turn it to scroll. Press it for the flashlight, as always.\n\nTo go back a page, pull " +
+            "down from the top edge and let go on BACK.",
     ),
     Page(
         "No signal",

@@ -34,6 +34,7 @@ fun InfoScreen(
     onAllowBlocked: () -> Unit,
     onToggleKeep: () -> Unit,
     onToggleReader: () -> Unit,
+    onToggleBlocking: () -> Unit,
     onFolder: () -> Unit,
     onForgetLogin: () -> Unit,
     onRemove: () -> Unit,
@@ -74,6 +75,12 @@ fun InfoScreen(
                     state = if (tool.keep) "on" else "off",
                     lit = tool.keep,
                     onClick = onToggleKeep,
+                )
+                FactRow(
+                    title = "Block ads and trackers",
+                    state = if (tool.blocking) "on" else "off",
+                    lit = tool.blocking,
+                    onClick = onToggleBlocking,
                 )
                 FactRow(
                     title = "Reader view",

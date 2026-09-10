@@ -107,7 +107,7 @@ private sealed class Screen {
  * One activity, a handful of screens, one page at a time.
  *
  * The root view is a [PullDownFrame], so the back-to-the-list gesture works the same over a page
- * as over the list. `dispatchKeyEvent` is where the wheel and the camera button can be seen.
+ * as over the list. `dispatchKeyEvent` is where the wheel can be seen.
  */
 class MainActivity : ComponentActivity() {
 
@@ -158,7 +158,6 @@ class MainActivity : ComponentActivity() {
     private var listState = LazyListState()
     private var pageScroll = ScrollState(0)
 
-    private var lastCameraKeyAt = 0L
     private var statusClear: Runnable? = null
     private var snapshotJob: Runnable? = null
 
@@ -357,6 +356,10 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onToggleKeep = { store.update(tool.id) { t -> t.copy(keep = !t.keep) } },
                                         onToggleReader = { store.update(tool.id) { t -> t.copy(reader = !t.reader) } },
+                                        onToggleBlocking = {
+                                            store.update(tool.id) { t -> t.copy(blocking = !t.blocking) }
+                                            say(if (tool.blocking) "Blocking off. Open it again." else "Blocking on. Open it again.")
+                                        },
                                         onFolder = { go(Screen.PickFolder(tool.id)) },
                                         onForgetLogin = { forgetLogin(tool) },
                                         onRemove = { store.remove(tool.id); go(Screen.Home) },
@@ -455,6 +458,7 @@ class MainActivity : ComponentActivity() {
         const val AUTH_PACKAGE = "com.gios.lightauth"
         const val ACTION_PICK_CODE = "com.gios.lightauth.PICK_CODE"
         const val BITWARDEN_PACKAGE = "com.x8bit.bitwarden"
+        const val CONTROL_PACKAGE = "com.gios.lightcontrol"
     }
 
     private object Pull {
@@ -469,6 +473,7 @@ class MainActivity : ComponentActivity() {
         const val FORWARD = "Forward"
         const val REFRESH = "Refresh"
         const val CONVERT = "Convert…"
+        const val MENU = "Back to the menu"
         const val LIBRARY = "Send to library"
     }
 
@@ -488,7 +493,8 @@ class MainActivity : ComponentActivity() {
         return when (screen) {
             Screen.Home -> emptyList()
             is Screen.Page -> if (p == null) listOf(Pull.TOOLS) else if (pulleyPage) buildList {
-                // The convert page: what this page could become, and the way out.
+                // The convert page: the way back first, then what this page could become, then out.
+                add(Pull.MENU)
                 if (ticketsInstalled) add(Pull.TICKET)
                 if (libraryInstalled) add(Pull.LIBRARY)
                 add(Pull.TOOLS)
@@ -524,6 +530,7 @@ class MainActivity : ComponentActivity() {
                 pulleyPage = true
                 say("Pull again: make a ticket, or send to the library")
             }
+            Pull.MENU -> say("Pull again for the menu")
             Pull.REFRESH -> {
                 p?.reload()
                 say("Reloading")
@@ -674,7 +681,15 @@ class MainActivity : ComponentActivity() {
                 return
             }
         }
-        say("This phone has no screen for it. BrightControl › ADB › GRANT ALL sets it, or: cmd role add-role-holder android.app.role.BROWSER com.gios.webtools")
+        // LightOS has neither the role dialog nor a Default apps screen, so the only thing that
+        // can set this is the shell — and BrightControl has one. Open it rather than print a
+        // command nobody can run from here.
+        val control = packageManager.getLaunchIntentForPackage(CONTROL_PACKAGE)
+        if (control != null && runCatching { startActivity(control) }.isSuccess) {
+            say("BrightControl › ADB & grants › GRANT ALL")
+            return
+        }
+        say("Needs the shell: cmd role add-role-holder android.app.role.BROWSER com.gios.webtools")
     }
 
     /**
@@ -691,10 +706,19 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** The same story as the browser role: only the shell can set it, and BrightControl has one. */
     private fun passkeyAdvice(): String = when {
         passkeyState() == "bitwarden" -> "Bitwarden answers for passkeys. It asks once whether to trust Web Tools."
-        installed(BITWARDEN_PACKAGE) -> "Bitwarden is here but not set. BrightControl › ADB & grants › GRANT ALL sets it."
+        installed(BITWARDEN_PACKAGE) -> {
+            openControl()
+            "BrightControl › ADB & grants › GRANT ALL sets Bitwarden as the provider"
+        }
         else -> "No passkey provider on the phone. Install Bitwarden, then GRANT ALL in BrightControl."
+    }
+
+    private fun openControl() {
+        val i = packageManager.getLaunchIntentForPackage(CONTROL_PACKAGE) ?: return
+        runCatching { startActivity(i) }
     }
 
     private fun signInToWifi(intent: Intent?) {
@@ -1070,20 +1094,14 @@ class MainActivity : ComponentActivity() {
             when (LightKeys.of(event)) {
                 LightKey.WheelUp -> { scrollWheel(1); return true }
                 LightKey.WheelDown -> { scrollWheel(-1); return true }
-                LightKey.Camera, LightKey.Focus -> {
-                    // Both stages arrive per press, in either order; one press is one step back.
-                    val now = System.currentTimeMillis()
-                    if (now - lastCameraKeyAt > 500L) {
-                        lastCameraKeyAt = now
-                        back()
-                    }
-                    return true
-                }
+                // The camera button is not read here. It never worked on this phone — the two
+                // stages arrive without a reliable order and LightOS claims the press first — so
+                // the app leaves it to the system rather than swallowing a key it cannot use.
                 else -> Unit
             }
         } else if (event.action == KeyEvent.ACTION_UP) {
             when (LightKeys.of(event)) {
-                LightKey.WheelUp, LightKey.WheelDown, LightKey.Camera, LightKey.Focus -> return true
+                LightKey.WheelUp, LightKey.WheelDown -> return true
                 else -> Unit
             }
         }

@@ -52,6 +52,13 @@ data class Tool(
     val added: Long = 0L,
     val builtIn: Boolean = false,
     val folder: String = "",
+    /**
+     * Whether this tool blocks ads and trackers. On for everything, until a site turns out to
+     * need otherwise: blocking is also the commonest reason a page comes up blank, and a switch
+     * on the tool's own page is the difference between a site that does not work and a site that
+     * works once you know.
+     */
+    val blocking: Boolean = true,
 ) {
     /** The address a bundle is served from. */
     val bundleHost: String get() = "$id.$BUNDLE_DOMAIN"
@@ -78,6 +85,7 @@ data class Tool(
         .put("added", added)
         .put("builtIn", builtIn)
         .put("folder", folder)
+        .put("blocking", blocking)
 
     companion object {
         const val BUNDLE_DOMAIN = "webtools.internal"
@@ -102,6 +110,7 @@ data class Tool(
                 added = o.optLong("added", 0L),
                 builtIn = o.optBoolean("builtIn", false),
                 folder = o.optString("folder", ""),
+                blocking = o.optBoolean("blocking", true),
             )
         }
 

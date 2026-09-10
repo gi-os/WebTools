@@ -25,6 +25,13 @@ class WebToolsApp : Application() {
 
     val bridge = Bridge()
 
+    /** Whether each bundled extension actually installed. A blank page's first question. */
+    @Volatile var ublockReady = false
+    @Volatile var bridgeReady = false
+
+    /** uBlock, once installed, so a tool can be opened without it. */
+    @Volatile var ublock: org.mozilla.geckoview.WebExtension? = null
+
     /** The page on screen, if any, so a bug report can carry its log. Set by MainActivity. */
     @Volatile var currentPage: GeckoTool? = null
 
@@ -42,6 +49,8 @@ class WebToolsApp : Application() {
             buildString {
                 appendLine("engine: GeckoView " + org.mozilla.geckoview.BuildConfig.MOZ_APP_VERSION)
                 appendLine("bridge: " + if (bridge.connected) "connected" else "not connected")
+                appendLine("extensions: ublock " + (if (ublockReady) "installed" else "MISSING") + ", bridge " + (if (bridgeReady) "installed" else "MISSING"))
+                appendLine("blocking: " + (if (p?.tool?.blocking == false) "off for this tool" else "on") + ", ETP standard")
                 if (p != null) {
                     appendLine("tool: ${p.tool.name} (${p.tool.kind}) home ${p.tool.url}")
                     appendLine("wall: " + (p.tool.origins.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: "none"))
@@ -54,7 +63,12 @@ class WebToolsApp : Application() {
 
         val blocking = ContentBlocking.Settings.Builder()
             .antiTracking(ContentBlocking.AntiTracking.DEFAULT or ContentBlocking.AntiTracking.STP)
-            .enhancedTrackingProtectionLevel(ContentBlocking.EtpLevel.STRICT)
+            // STANDARD, not STRICT. Strict adds Total Cookie Protection, which partitions the
+            // cookies a cross-site sign-in depends on: AXS hands you to login.axs.com and back to
+            // www.axs.com/login-redirect, and under strict that round trip ends on a blank page.
+            // uBlock Origin still blocks the ads; this is the setting that decides whether a
+            // login works, and a browser that cannot sign in is not one.
+            .enhancedTrackingProtectionLevel(ContentBlocking.EtpLevel.DEFAULT)
             .cookieBehavior(ContentBlocking.CookieBehavior.ACCEPT_NON_TRACKERS)
             // No Google Safe Browsing lookups: no Google, and nothing phoned home per page.
             .safeBrowsing(ContentBlocking.SafeBrowsing.NONE)
@@ -72,12 +86,12 @@ class WebToolsApp : Application() {
         val wec = runtime.webExtensionController
         wec.ensureBuiltIn("resource://android/assets/ublock/", "uBlock0@raymondhill.net")
             .accept(
-                { Log.i(TAG, "uBlock Origin ${it?.metaData?.version} ready") },
+                { ublock = it; ublockReady = it != null; Log.i(TAG, "uBlock Origin ${it?.metaData?.version} ready") },
                 { Log.w(TAG, "uBlock Origin did not install: $it") },
             )
         wec.ensureBuiltIn("resource://android/assets/bridge/", "bridge@webtools.gios")
             .accept(
-                { ext -> if (ext != null) bridge.attach(ext) else Log.w(TAG, "bridge: null extension") },
+                { ext -> bridgeReady = ext != null; if (ext != null) bridge.attach(ext) else Log.w(TAG, "bridge: null extension") },
                 { Log.w(TAG, "bridge did not install: $it") },
             )
     }

@@ -34,7 +34,7 @@ DuckDuckGo, Ecosia or Kagi. No feed, no suggestions, no history you did not ask 
 - **Saved copies.** Turn on *Keeping a copy* and the engine prints the page to a PDF after every
   visit. With no signal, the copy opens instead. Open a ticket at home and it is on the phone at
   the gate.
-- **The wheel scrolls.** Any page, any list. The camera button goes back one page, then to the
+- **The wheel scrolls.** Any page, any list. BACK in the pull-down goes back one page, then to the
   list.
 - **Two tools ship inside:** a bill splitter and a unit converter. Both work with no network.
 - **Bring a login from a computer.** A few sign-in pages refuse anything but a browser they know.
@@ -229,7 +229,7 @@ Versioning is `v1.x.x`. CI stamps the patch number from the build.
 
 ### v1.0.0
 
-- The list, the tool page, the pull-down back to the list, wheel scrolling, camera button back.
+- The list, the tool page, the pull-down back to the list, wheel scrolling.
 - Site tools with a per-tool allowlist and a blocked-link notice.
 - Saved copies (MHTML) with refresh on every live visit and fallback when a load fails or the
   phone is offline.

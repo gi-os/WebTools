@@ -73,9 +73,10 @@ class PullDownFrame(context: Context) : FrameLayout(context) {
      * It used to be this strip *or* "the content is at its top", and the second half was the
      * problem. A page scrolled to the top is the normal state of a page you have just opened, so
      * every downward stroke anywhere on it opened the menu instead of scrolling — the whole
-     * screen was a handle. One strip, always, is a rule the thumb learns once.
+     * screen was a handle. One strip, always, is a rule the thumb learns once — 56dp of it,
+     * because 28 was the top edge and nothing else, and a thumb aiming at 28dp misses.
      */
-    private val topBandPx: Float = 28f * density
+    private val topBandPx: Float = 56f * density
 
     override fun requestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {
         // The child does not get to veto a pull that is still possible.

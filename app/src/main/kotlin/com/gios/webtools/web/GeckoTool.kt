@@ -69,7 +69,7 @@ class GeckoTool(
     init {
         val settings = GeckoSessionSettings.Builder()
             .usePrivateMode(false)
-            .useTrackingProtection(true)
+            .useTrackingProtection(tool.blocking)
             .userAgentMode(GeckoSessionSettings.USER_AGENT_MODE_MOBILE)
             .suspendMediaWhenInactive(true)
             .build()

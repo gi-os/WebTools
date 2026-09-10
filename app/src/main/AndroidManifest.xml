@@ -22,6 +22,7 @@
         <package android:name="com.lightfastread" />
         <package android:name="com.gios.lightauth" />
         <package android:name="com.x8bit.bitwarden" />
+        <package android:name="com.gios.lightcontrol" />
     </queries>
 
     <application
