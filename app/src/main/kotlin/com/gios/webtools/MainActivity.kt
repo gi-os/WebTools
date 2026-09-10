@@ -71,6 +71,9 @@ import com.gios.webtools.web.Search
 import com.gios.webtools.web.SearchEngine
 import com.gios.webtools.web.ToolPageListener
 import com.gios.webtools.web.Warmth
+import com.gios.webtools.web.Portal
+import android.app.role.RoleManager
+import android.net.ConnectivityManager
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.launch
@@ -112,6 +115,8 @@ class MainActivity : ComponentActivity() {
     private var toolView: GeckoView? = null
     private lateinit var prefs: Prefs
     private lateinit var downloads: DownloadStore
+    private lateinit var portal: Portal
+    private var isBrowser by mutableStateOf(false)
     private lateinit var downloader: Downloader
     private var downloadsList = LazyListState()
     private var engine by mutableStateOf(SearchEngine.DUCKDUCKGO)
@@ -160,6 +165,7 @@ class MainActivity : ComponentActivity() {
         downloads = DownloadStore(this)
         downloads.load()
         downloader = Downloader(downloads)
+        portal = Portal(this)
         store.installBuiltIns()
 
         prefs = Prefs(this)
@@ -196,7 +202,17 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
+        if (intent?.action == ConnectivityManager.ACTION_CAPTIVE_PORTAL_SIGN_IN) { signInToWifi(intent); return }
         val data = intent?.data ?: return
+        // A link from another app. A shelf tool whose wall covers the host takes it; otherwise
+        // it is a page like any typed address, with no wall and no row.
+        if (data.scheme == "http" || data.scheme == "https") {
+            val url = data.toString()
+            val host = Tool.hostOf(url)
+            val owner = store.tools.value.firstOrNull { it.kind == ToolKind.SITE && it.origins.isNotEmpty() && OriginRule.allows(it.origins, host) }
+            if (owner != null) show(owner, resumeAt = url, live = true) else lookUp(url)
+            return
+        }
         if (data.scheme != "webtools") return
         when (data.host) {
             // webtools://open/<id>[?u=<address>]: a tool, at its home or at one page of it,
@@ -261,6 +277,9 @@ class MainActivity : ComponentActivity() {
                                     graceMs = Warmth.nextGrace(graceMs)
                                     prefs.graceMs = graceMs
                                 },
+                                isBrowser = isBrowser,
+                                onAskBrowser = { askBrowserRole() },
+                                onWifiSignIn = { signInToWifi(null) },
                                 about = "Web Tools ${BuildConfig.VERSION_NAME} · GeckoView " +
                                     org.mozilla.geckoview.BuildConfig.MOZ_APP_VERSION +
                                     " · uBlock Origin, always on\n" + Device.summary(this@MainActivity),
@@ -530,6 +549,37 @@ class MainActivity : ComponentActivity() {
         if (runCatching { startActivity(intent) }.isFailure) say("Nothing on the phone opens a ${d.detail().substringBefore(" ·")}")
     }
 
+    // ---- the browser role, and Wi-Fi sign-in ----
+
+    private fun checkBrowserRole() {
+        val rm = getSystemService(RoleManager::class.java)
+        isBrowser = rm != null && rm.isRoleAvailable(RoleManager.ROLE_BROWSER) && rm.isRoleHeld(RoleManager.ROLE_BROWSER)
+    }
+
+    /** Ask the system to make this the browser. The dialog is the platform's; LightOS may lack it. */
+    private fun askBrowserRole() {
+        val rm = getSystemService(RoleManager::class.java)
+        if (rm == null || !rm.isRoleAvailable(RoleManager.ROLE_BROWSER)) { say("This phone has no browser role to give"); return }
+        if (rm.isRoleHeld(RoleManager.ROLE_BROWSER)) { say("Web Tools is the browser already"); return }
+        if (runCatching { startActivity(rm.createRequestRoleIntent(RoleManager.ROLE_BROWSER)) }.isFailure) {
+            say("The system would not ask. Over ADB: cmd role add-role-holder android.app.role.BROWSER com.gios.webtools")
+        }
+    }
+
+    private fun signInToWifi(intent: Intent?) {
+        portal.begin(intent, object : Portal.Listener {
+            override fun onStatus(text: String) { status = text }
+            override fun onOpen(url: String) {
+                show(Tool(id = "", name = "Wi-Fi sign-in", kind = ToolKind.SITE, url = url, origins = emptyList(), added = System.currentTimeMillis()))
+            }
+            override fun onSignedIn() {
+                say("Signed in. The Wi-Fi is open.")
+                handler.postDelayed({ if (page?.tool?.name == "Wi-Fi sign-in") go(Screen.Home) }, 1500)
+            }
+            override fun onGaveUp(why: String) { say(why) }
+        })
+    }
+
     // ---- tickets ----
 
     /** Whether Movie Tickets is on the phone; checked each time the app comes to the front. */
@@ -629,6 +679,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         checkTickets()
+        checkBrowserRole()
         handler.removeCallbacks(parkJob)
         handler.removeCallbacks(exitJob)
         parked?.let {
@@ -651,6 +702,7 @@ class MainActivity : ComponentActivity() {
         page?.close()
         page = null
         app.currentPage = null
+        portal.stop()
     }
 
     private val listener = object : ToolPageListener {

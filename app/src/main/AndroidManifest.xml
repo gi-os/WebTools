@@ -25,6 +25,7 @@
         android:supportsRtl="true"
         android:hardwareAccelerated="true"
         android:largeHeap="true"
+        android:usesCleartextTraffic="true"
         android:theme="@style/Theme.WebTools">
 
         <activity
@@ -38,6 +39,22 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- A browser: any http or https link from another app lands here. If the host is
+                 inside a shelf tool's wall it opens in that tool; otherwise as a searched page. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+            </intent-filter>
+            <!-- Hotel Wi-Fi: the system's "sign in to network" flow, or BrightControl's hand-off.
+                 Plain http is allowed app-wide above because a portal can only hijack a request it
+                 can read; the probe address is http on purpose. -->
+            <intent-filter>
+                <action android:name="android.net.conn.CAPTIVE_PORTAL" />
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
             <!-- webtools://open/<id> opens one tool straight away. -->
             <intent-filter>

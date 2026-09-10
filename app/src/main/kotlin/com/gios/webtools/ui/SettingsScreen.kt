@@ -32,6 +32,9 @@ fun SettingsScreen(
     onCycleEngine: () -> Unit,
     graceMs: Long,
     onCycleGrace: () -> Unit,
+    isBrowser: Boolean,
+    onAskBrowser: () -> Unit,
+    onWifiSignIn: () -> Unit,
     about: String,
     onTutorial: () -> Unit,
     onBack: () -> Unit,
@@ -57,6 +60,16 @@ fun SettingsScreen(
                 title = "Keep a page warm",
                 detail = Warmth.graceLabel(graceMs) + " after leaving · a ticket page, an hour",
                 onClick = onCycleGrace,
+            )
+            ListRow(
+                title = "The phone's browser",
+                detail = if (isBrowser) "Web Tools opens links from other apps" else "Not yet · tap to ask the system",
+                onClick = onAskBrowser,
+            )
+            ListRow(
+                title = "Wi-Fi sign-in",
+                detail = "Hotel or café Wi-Fi that wants a page filled in before it works",
+                onClick = onWifiSignIn,
             )
             ListRow(
                 title = "Send feedback",

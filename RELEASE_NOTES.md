@@ -1,18 +1,33 @@
-# WebTools 2.4 — downloads
+# WebTools 2.5 — the phone's browser, downloads, Wi-Fi sign-in
 
 ## In this release
 
-- **A page can hand you a file now.** Until this release a link to a PDF, a picture served as an
-  attachment, or a calendar file did nothing at all: the engine asked the app to take it and
-  the app had no hands. Now it saves to the phone, with the name the server gave it, and the
-  status line counts up while it does.
-- **DOWNLOADS**, on the shelf's bar between ADD and SETTINGS. Newest first, with the kind, the
-  size and the day. Tap a PDF, a picture or a text file and the engine shows it, full screen,
-  with the pull-down as on any page: MAKE A TICKET works on a downloaded ticket. Tap anything
-  else and the phone is offered it; if nothing on the phone takes it, the app says so. Hold a
-  row and the bar asks once before removing.
+- **Web Tools can be the browser.** Settings › *The phone's browser* asks the system to hand
+  over the role. From then on any link another app opens (Movie Tickets, BrightNews, a message)
+  lands here. If a shelf tool's wall covers the link, it opens inside that tool, wall and all;
+  otherwise it opens the way a typed address does. If the system has no dialog to offer, the
+  row says the one ADB line that does the same.
+- **Wi-Fi sign-in.** Hotel and café Wi-Fi answers every request with its own page until you fill
+  it in, and this phone had nothing to fill it in with. Settings › *Wi-Fi sign-in* (or the
+  system's own "sign in to network" flow, which now finds this app) binds the app to that
+  network, shows the gate, and asks a known address every four seconds until it answers 204. Then
+  it tells the system the network is good. A VPN makes Android refuse the bind for every app but
+  its own sign-in app; the row says so rather than spinning, and BrightControl knows how to
+  reach that app.
+- **A page can hand you a file.** A link to a PDF, a picture served as an attachment, or a
+  calendar file used to do nothing. Now it saves to the phone under the server's name while the
+  status line counts up.
+- **DOWNLOADS**, on the shelf's bar between ADD and SETTINGS. Newest first: kind, size, day. Tap
+  a PDF, a picture or a text file and the engine shows it, with the pull-down as on any page, so
+  MAKE A TICKET works on a downloaded ticket. Anything else is offered to the phone; if nothing
+  takes it, the app says so. Hold a row and the bar asks once before removing.
 - **The engine switch left the search field.** It was one tap from the wrong result. Settings is
-  the only place the engine changes.
+  the only place it changes.
+
+## Unverified on the phone
+
+Whether Gecko's connections follow `bindProcessToNetwork` (they should: Gecko does its
+networking in this process on Android), and whether LightOS shows the browser-role dialog.
 
 ## From 2.3
 

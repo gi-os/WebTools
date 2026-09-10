@@ -1,6 +1,8 @@
 # WebTools
 
-A browser for the Light Phone III, built for the Light ethos, on Firefox's engine.
+A browser for the Light Phone III, built for the Light ethos, on Firefox's engine. It can be
+*the* browser: any link another app opens lands here, and a hotel Wi-Fi's sign-in page has
+somewhere to appear.
 
 It has two halves. The **shelf** is a short list of web pages you need now and then: a ticket, a
 train status, a form you fill twice a year. Each opens full screen and stays inside its own site.
@@ -40,6 +42,12 @@ DuckDuckGo, Ecosia or Kagi. No feed, no suggestions, no history you did not ask 
 - **Downloads.** A link to a PDF, a picture or a file the page will not show is saved to the
   phone and listed under DOWNLOADS. PDFs, pictures and text open in the engine; anything else
   is offered to the phone. Hold a row to remove it.
+- **The phone's browser.** Settings asks the system to make Web Tools the browser. A link from
+  BrightNews, Movie Tickets or a message opens inside the shelf tool whose wall covers it, or as
+  a searched page.
+- **Wi-Fi sign-in.** Hotel and café Wi-Fi shows its page here. The app binds to that network,
+  loads the gate, and probes a 204 endpoint until it opens; if the system asked, it is told. A
+  VPN blocks this for every app but the platform's own; BrightControl knows that route.
 - **Settings.** The search engine, how long a page stays warm after you leave, the tutorial,
   Send feedback, the shake readout, and the install id.
 
@@ -109,6 +117,13 @@ Versioning is `v1.x.x`. CI stamps the patch number from the build.
   `Application.onCreate`, and a runtime inside one killed the page on load.
 - `CrashLog`: an uncaught exception files itself on the next launch.
 - Native libraries compressed in the APK: 108 MB, not 202.
+
+### v2.5.0
+
+- Browser role: `http`/`https` `BROWSABLE` filter; Settings row asks `RoleManager` for
+  `ROLE_BROWSER`. A link opens in the tool whose wall covers it, else as a searched page.
+- Wi-Fi sign-in (`web/Portal.kt`): `CAPTIVE_PORTAL` action, `bindProcessToNetwork`, 204 probe
+  every 4 s, `reportCaptivePortalDismissed`. Explains a VPN refusal instead of spinning.
 
 ### v2.4.0
 

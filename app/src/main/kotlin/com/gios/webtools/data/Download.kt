@@ -60,9 +60,10 @@ data class Download(
                     ?: plain?.groupValues?.get(1)?.trim()
             }
             if (name.isNullOrBlank()) {
-                val path = url.substringBefore('?').substringBefore('#').trimEnd('/')
+                // The path only: the host is not a file name, and "https://x.org" has no path.
+                val path = url.substringBefore('?').substringBefore('#').substringAfter("://", url).substringAfter('/', "").trimEnd('/')
                 val last = path.substringAfterLast('/')
-                if (last.isNotBlank() && !last.contains(':')) name = decode(last)
+                if (last.isNotBlank()) name = decode(last)
             }
             var clean = (name ?: "download")
                 .replace(Regex("""[\\/\p{Cntrl}]"""), "_")
