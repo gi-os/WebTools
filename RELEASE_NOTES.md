@@ -3,8 +3,8 @@
 ## In this release
 
 - **Strict tracking protection was blanking sign-ins.** AXS hands you to `login.axs.com` and back
-  to `www.axs.com/login-redirect`; strict mode partitions the cookies that round trip needs, and
-  the page arrived, said "Login to AXS" in its title, and rendered nothing. Blocking is on
+  to `www.axs.com/login-redirect`. Strict mode partitions the cookies that round trip needs. The
+  page arrived, said "Login to AXS" in its title, and rendered nothing. Blocking is on
   standard now. uBlock Origin still blocks the ads.
 - **Block ads and trackers, per tool.** A row on the tool's page. Blocking is the commonest reason
   a page comes up blank, and this is the difference between a site that does not work and one
