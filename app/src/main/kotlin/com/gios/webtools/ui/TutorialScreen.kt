@@ -35,8 +35,7 @@ private val PAGES = listOf(
         "Web Tools keeps a short list of web pages you need now and then: a ticket, a train " +
             "status, a form you fill twice a year. That is the shelf.\n\nThe field above it is the " +
             "other half. Type an address and it opens. Type words and they go to a search engine: " +
-            "DuckDuckGo, Ecosia or Kagi. The engine's name sits at the right end of the field; tap " +
-            "it to switch. Nothing typed there is kept.\n\nUnderneath is Firefox's engine, so sites see a real " +
+            "DuckDuckGo, Ecosia or Kagi, chosen in SETTINGS. Nothing typed there is kept.\n\nUnderneath is Firefox's engine, so sites see a real " +
             "browser. Ads and trackers are blocked by uBlock Origin, always.",
     ),
     Page(
@@ -46,7 +45,8 @@ private val PAGES = listOf(
             "Type an address, or take one of the starters. A page on the shelf stays inside its own " +
             "site; links elsewhere are dead ends, unless you allow them.\n\nSETTINGS holds the " +
             "search engine, how long a page stays warm in the background, this tutorial, and " +
-            "a way to send feedback.",
+            "a way to send feedback.\n\nDOWNLOADS holds what a page handed over instead of showing: a " +
+            "PDF, a picture, a calendar file. Tap one to open it.",
     ),
     Page(
         "The pull-down menu",

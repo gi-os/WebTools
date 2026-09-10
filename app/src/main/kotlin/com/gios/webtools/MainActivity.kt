@@ -38,6 +38,11 @@ import com.gios.webtools.data.Tool
 import com.gios.webtools.data.ToolKind
 import com.gios.webtools.data.ToolStore
 import com.gios.webtools.data.Prefs
+import com.gios.webtools.data.Download
+import com.gios.webtools.data.DownloadStore
+import com.gios.webtools.web.Downloader
+import com.gios.webtools.ui.DownloadsScreen
+import org.mozilla.geckoview.WebResponse
 import com.gios.webtools.gesture.PullDownFrame
 import com.gios.webtools.hw.LightKey
 import com.gios.webtools.hw.LightKeys
@@ -76,6 +81,7 @@ private sealed class Screen {
     data object Tutorial : Screen()
     data object Home : Screen()
     data object Settings : Screen()
+    data object Downloads : Screen()
     data class Add(val message: String? = null) : Screen()
     data class Info(val id: String) : Screen()
     data class Page(val id: String, val saved: Boolean) : Screen()
@@ -105,6 +111,9 @@ class MainActivity : ComponentActivity() {
     /** The view the page draws in, for a picture of the page itself. */
     private var toolView: GeckoView? = null
     private lateinit var prefs: Prefs
+    private lateinit var downloads: DownloadStore
+    private lateinit var downloader: Downloader
+    private var downloadsList = LazyListState()
     private var engine by mutableStateOf(SearchEngine.DUCKDUCKGO)
     private var graceMs by mutableStateOf(Warmth.GRACE_MS)
 
@@ -148,6 +157,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         store = ToolStore(this)
         store.load()
+        downloads = DownloadStore(this)
+        downloads.load()
+        downloader = Downloader(downloads)
         store.installBuiltIns()
 
         prefs = Prefs(this)
@@ -223,14 +235,23 @@ class MainActivity : ComponentActivity() {
                             Screen.Home -> ListScreen(
                                 tools = tools.sortedWith(compareByDescending<Tool> { it.lastUsed }.thenBy { it.added }),
                                 listState = listState,
-                                engine = engine,
                                 onSearch = { typed -> lookUp(typed) },
-                                onCycleEngine = { cycleEngine() },
                                 onOpen = { show(it) },
                                 onInfo = { go(Screen.Info(it.id)) },
                                 onAdd = { go(Screen.Add()) },
+                                onDownloads = { go(Screen.Downloads) },
                                 onSettings = { go(Screen.Settings) },
                             )
+                            Screen.Downloads -> {
+                                val items by downloads.items.collectAsStateWithLifecycle()
+                                DownloadsScreen(
+                                    items = items,
+                                    listState = downloadsList,
+                                    onOpen = { openDownload(it) },
+                                    onRemove = { downloads.remove(it); say("Removed ${it.name}") },
+                                    onBack = { go(Screen.Home) },
+                                )
+                            }
                             Screen.Settings -> SettingsScreen(
                                 scroll = pageScroll,
                                 engine = engine,
@@ -315,6 +336,7 @@ class MainActivity : ComponentActivity() {
             is Screen.Info -> "tool"
             is Screen.Add -> "add"
             Screen.Settings -> "settings"
+            Screen.Downloads -> "downloads"
             Screen.Tutorial -> "tutorial"
             else -> "shelf"
         }
@@ -475,6 +497,39 @@ class MainActivity : ComponentActivity() {
         show(tool)
     }
 
+    // ---- downloads ----
+
+    private val downloadListener = object : Downloader.Listener {
+        override fun onProgress(name: String, bytes: Long, total: Long) {
+            status = if (total > 0) "Saving $name · ${(bytes * 100 / total)}%" else "Saving $name · ${Download.sizeLabel(bytes)}"
+        }
+
+        override fun onDone(download: Download) {
+            say("Saved ${download.name} · DOWNLOADS on the shelf")
+        }
+
+        override fun onFailed(name: String, why: String) {
+            say("Could not save $name: $why")
+        }
+    }
+
+    /**
+     * A saved file opens in the engine when the engine can show it (its PDF viewer, pictures,
+     * text); anything else is offered to the phone by content URI, and if nothing takes it, we
+     * say so rather than pretend.
+     */
+    private fun openDownload(d: Download) {
+        val file = downloads.fileOf(d)
+        if (!file.exists()) { say("That file is gone"); downloads.load(); return }
+        if (d.viewable) {
+            show(Tool(id = "", name = d.name, kind = ToolKind.SITE, url = Uri.fromFile(file).toString(), origins = emptyList(), added = System.currentTimeMillis()))
+            return
+        }
+        val uri = FileProvider.getUriForFile(this, "com.gios.webtools.share", file)
+        val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, d.mime.ifBlank { "*/*" }).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        if (runCatching { startActivity(intent) }.isFailure) say("Nothing on the phone opens a ${d.detail().substringBefore(" ·")}")
+    }
+
     // ---- tickets ----
 
     /** Whether Movie Tickets is on the phone; checked each time the app comes to the front. */
@@ -610,6 +665,10 @@ class MainActivity : ComponentActivity() {
             if (tool.id.isEmpty()) return
             store.update(tool.id) { t -> if (t.origins.contains(host)) t else t.copy(origins = t.origins + host) }
             say("Following the site to $host")
+        }
+
+        override fun onDownload(response: WebResponse) {
+            downloader.start(response, downloadListener)
         }
 
         override fun onRefused(title: String) {

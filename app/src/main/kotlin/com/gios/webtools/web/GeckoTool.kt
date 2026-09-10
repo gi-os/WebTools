@@ -15,6 +15,7 @@ import org.mozilla.geckoview.GeckoSessionSettings
 import org.mozilla.geckoview.PanZoomController
 import org.mozilla.geckoview.ScreenLength
 import org.mozilla.geckoview.WebRequestError
+import org.mozilla.geckoview.WebResponse
 import java.io.File
 import java.io.InputStream
 
@@ -28,6 +29,8 @@ interface ToolPageListener {
     fun onRefused(title: String)
     /** The site itself sent the first load to another host (tutanota.com -> tuta.com). */
     fun onRedirectedTo(host: String)
+    /** A response the engine will not show (a PDF link, an attachment): save it. */
+    fun onDownload(response: WebResponse)
 }
 
 /**
@@ -157,6 +160,11 @@ class GeckoTool(
             override fun onKill(s: GeckoSession) {
                 log.error(currentUrl ?: "?", "content process killed")
             }
+
+            override fun onExternalResponse(s: GeckoSession, response: WebResponse) {
+                log.nav("download ${response.uri}")
+                listener.onDownload(response)
+            }
         }
 
         session.scrollDelegate = object : GeckoSession.ScrollDelegate {
@@ -185,7 +193,9 @@ class GeckoTool(
     private fun isOwnFile(uri: Uri): Boolean {
         if (uri.scheme != "file") return false
         val p = uri.path ?: return false
-        return runCatching { File(p).canonicalPath.startsWith(File(context.filesDir, "tools").canonicalPath) }.getOrDefault(false)
+        // Saved copies live under files/tools, downloads under files/downloads; nothing else.
+        val own = listOf("tools", "downloads").map { File(context.filesDir, it).canonicalPath }
+        return runCatching { val c = File(p).canonicalPath; own.any { c.startsWith(it) } }.getOrDefault(false)
     }
 
     /** The address to load: bundle, saved copy, reader view, or the site. */

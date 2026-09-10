@@ -2,4 +2,5 @@
 <!-- Only the one folder the ticket screenshot is written to. -->
 <paths>
     <cache-path name="tickets" path="tickets/" />
+    <files-path name="downloads" path="downloads/" />
 </paths>

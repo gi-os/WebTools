@@ -1,35 +1,23 @@
-# WebTools 2.3 — Settings, and the family's report chip
+# WebTools 2.4 — downloads
 
 ## In this release
 
-- **BACK, then FORWARD, lead the pull-down.** The shortest pull goes one page back; the next,
-  one forward. Each row is there only when the page has somewhere to go, and neither ever
-  goes home. TOOLS is still the deepest.
-- **SETTINGS.** On the shelf's bar, next to ADD. Rows, each a fact with the tap that changes it:
-  the search engine (DuckDuckGo, Ecosia, Kagi), how long a page stays warm after you leave (1, 2,
-  5, 15 or 30 minutes; a ticket page keeps its hour), Send feedback, a live shake readout, the
-  tutorial, and the install id under the version. HELP moved in here.
-- **The report chip.** Shake-to-report is now the copy every Bright app carries,
-  `com.gios:light-common`. A shake raises a small chip in the corner; tap it for the sheet, BUG
-  or IDEA, a note, a screenshot you can refuse, SEND. A crash offers itself on the next launch.
-  The library gained a hook for this app, so the page log, the wall, the engine version and the
-  bridge's state still ride in the issue.
-- **Shake readout.** "I shook it and nothing happened" now has a number: Settings shows the
-  force in g, the peak, and how many turns of the gesture it counted.
-- **MAKE A TICKET takes a picture of the page, not of the window.** The picture comes from the
-  engine itself, so it is the page and nothing else. In 2.2 it came off the window, and the page
-  lived in a SurfaceView, which a window capture cannot see: the picture Movie Tickets got was
-  black, and there was nothing on it to read. The report chip's screenshot had the same hole.
-  The page now draws into a TextureView so that one shows the page too.
-- **OPEN THE PAGE on a pass returns to the page you made it from.** Not the tool's home, and not
-  the saved copy. The address travels as `webtools://open/<id>?u=<page>`. A page outside the
-  tool's wall opens as a searched page instead.
+- **A page can hand you a file now.** Until this release a link to a PDF, a picture served as an
+  attachment, or a calendar file did nothing at all: the engine asked the app to take it and
+  the app had no hands. Now it saves to the phone, with the name the server gave it, and the
+  status line counts up while it does.
+- **DOWNLOADS**, on the shelf's bar between ADD and SETTINGS. Newest first, with the kind, the
+  size and the day. Tap a PDF, a picture or a text file and the engine shows it, full screen,
+  with the pull-down as on any page: MAKE A TICKET works on a downloaded ticket. Tap anything
+  else and the phone is offered it; if nothing on the phone takes it, the app says so. Hold a
+  row and the bar asks once before removing.
+- **The engine switch left the search field.** It was one tap from the wrong result. Settings is
+  the only place the engine changes.
 
-## From 2.2
+## From 2.3
 
-- A page left in the background parks after the grace and re-opens where it was. The process
-  leaves five minutes after that. MAKE A TICKET sends the page to Movie Tickets and keeps it warm
-  for an hour.
+- Settings, the report chip from light-common, BACK and FORWARD at the top of the pull-down,
+  MAKE A TICKET from the page's own pixels, OPEN THE PAGE back to the live page.
 
 ## Known limits
 

@@ -10,9 +10,8 @@ DuckDuckGo, Ecosia or Kagi. No feed, no suggestions, no history you did not ask 
 ## What it does
 
 - **One list.** Tap a name and the page opens full screen. Hold a name to see its settings.
-- **One field.** Type an address and it opens. Type anything else and the search engine gets it.
-  The engine's name sits at the right end of the field. Tap it to switch between DuckDuckGo,
-  Ecosia and Kagi. Links may go anywhere. The app keeps nothing unless you pull down and choose
+- **One field.** Type an address and it opens. Type anything else and the search engine gets it:
+  DuckDuckGo, Ecosia or Kagi, chosen in Settings. Links may go anywhere. The app keeps nothing unless you pull down and choose
   *Keep on shelf*.
 - **A shelf page stays inside its site.** A tool for `ticketmaster.com` can reach
   `auth.ticketmaster.com` and nothing else. A link elsewhere is a dead end, with a note at the
@@ -38,6 +37,9 @@ DuckDuckGo, Ecosia or Kagi. No feed, no suggestions, no history you did not ask 
 - **Shake to report.** A shake raises a chip in the corner; tap it for the sheet, BUG or IDEA,
   SEND. The issue lands in the private tracker with the page log, the engine version and a
   screenshot. The same reporter every Bright app carries (`com.gios:light-common`).
+- **Downloads.** A link to a PDF, a picture or a file the page will not show is saved to the
+  phone and listed under DOWNLOADS. PDFs, pictures and text open in the engine; anything else
+  is offered to the phone. Hold a row to remove it.
 - **Settings.** The search engine, how long a page stays warm after you leave, the tutorial,
   Send feedback, the shake readout, and the install id.
 
@@ -107,6 +109,12 @@ Versioning is `v1.x.x`. CI stamps the patch number from the build.
   `Application.onCreate`, and a runtime inside one killed the page on load.
 - `CrashLog`: an uncaught exception files itself on the next launch.
 - Native libraries compressed in the APK: 108 MB, not 202.
+
+### v2.4.0
+
+- Downloads: `onExternalResponse` saves to `files/downloads/`, a DOWNLOADS screen on the shelf
+  bar lists them, PDFs and pictures open in the engine, other types by content URI.
+- The engine switch left the search field; Settings is the only place it changes.
 
 ### v2.3.0
 

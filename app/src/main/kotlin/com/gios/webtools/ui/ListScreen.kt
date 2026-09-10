@@ -1,15 +1,12 @@
 package com.gios.webtools.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -33,30 +30,27 @@ import androidx.compose.ui.unit.dp
 import com.gios.webtools.data.Tool
 import com.gios.webtools.hw.WheelScroll
 import com.gios.webtools.ui.theme.Dim
-import com.gios.webtools.web.SearchEngine
 
 /**
  * The whole app when nothing is open: one field, then the shelf. The field takes an address or
- * words to look up; the engine's name sits at its right end and a tap cycles it. Tap a row to
- * open, hold a row for its page.
+ * words to look up (the engine is chosen in Settings). Tap a row to open, hold a row for its page.
  */
 @Composable
 fun ListScreen(
     tools: List<Tool>,
     listState: LazyListState,
-    engine: SearchEngine,
     onSearch: (String) -> Unit,
-    onCycleEngine: () -> Unit,
     onOpen: (Tool) -> Unit,
     onInfo: (Tool) -> Unit,
     onAdd: () -> Unit,
+    onDownloads: () -> Unit,
     onSettings: () -> Unit,
 ) {
     WheelScroll(listState)
     var typed by remember { mutableStateOf("") }
     Column(Modifier.fillMaxSize()) {
         Row(
-            Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 14.dp, bottom = 10.dp),
+            Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             BasicTextField(
@@ -77,14 +71,6 @@ fun ListScreen(
                 },
                 modifier = Modifier.weight(1f),
             )
-            Spacer(Modifier.width(12.dp))
-            // The engine's name is the switch. No menu, no gear: tap it and it is the next one.
-            Text(
-                engine.label.uppercase(),
-                style = MaterialTheme.typography.labelSmall,
-                color = Dim,
-                modifier = Modifier.clickable(onClick = onCycleEngine).padding(horizontal = 8.dp, vertical = 10.dp),
-            )
         }
         Rule()
         Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -104,6 +90,6 @@ fun ListScreen(
                 }
             }
         }
-        ActionBar(listOf(BarAction("ADD", onAdd), BarAction("SETTINGS", onSettings)))
+        ActionBar(listOf(BarAction("ADD", onAdd), BarAction("DOWNLOADS", onDownloads), BarAction("SETTINGS", onSettings)))
     }
 }
