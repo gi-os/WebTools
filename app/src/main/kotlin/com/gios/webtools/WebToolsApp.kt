@@ -2,7 +2,8 @@ package com.gios.webtools
 
 import android.app.Application
 import android.util.Log
-import com.gios.webtools.report.CrashLog
+import com.gios.light.common.report.LightReport
+import com.gios.webtools.web.GeckoTool
 import com.gios.webtools.web.Bridge
 import org.mozilla.geckoview.ContentBlocking
 import org.mozilla.geckoview.GeckoRuntime
@@ -24,13 +25,32 @@ class WebToolsApp : Application() {
 
     val bridge = Bridge()
 
+    /** The page on screen, if any, so a bug report can carry its log. Set by MainActivity. */
+    @Volatile var currentPage: GeckoTool? = null
+
     /** True in the UI process, false in Gecko's child processes. */
     val isMainProcess: Boolean get() = Application.getProcessName() == packageName
 
     override fun onCreate() {
         super.onCreate()
         if (!isMainProcess) return
-        CrashLog.install(this)
+        // Shake, crash and failure reports go to gi-os/light-reports through the family's shared
+        // reporter. The label is what the triage skill filters on.
+        LightReport.install(context = this, appName = "Web Tools", label = "webtools", token = BuildConfig.REPORT_TOKEN)
+        LightReport.details = {
+            val p = currentPage
+            buildString {
+                appendLine("engine: GeckoView " + org.mozilla.geckoview.BuildConfig.MOZ_APP_VERSION)
+                appendLine("bridge: " + if (bridge.connected) "connected" else "not connected")
+                if (p != null) {
+                    appendLine("tool: ${p.tool.name} (${p.tool.kind}) home ${p.tool.url}")
+                    appendLine("wall: " + (p.tool.origins.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: "none"))
+                    appendLine("now: ${p.currentUrl}")
+                    appendLine()
+                    append(p.log.dump())
+                }
+            }
+        }
 
         val blocking = ContentBlocking.Settings.Builder()
             .antiTracking(ContentBlocking.AntiTracking.DEFAULT or ContentBlocking.AntiTracking.STP)

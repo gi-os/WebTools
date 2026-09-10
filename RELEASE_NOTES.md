@@ -1,26 +1,26 @@
-# WebTools 2.2 — a page that knows when to sleep
+# WebTools 2.3 — Settings, and the family's report chip
 
 ## In this release
 
-- **The battery.** A page left open in the background kept Firefox's engine running its scripts
-  all night. Now a page that leaves the screen parks after two minutes: its session closes, the app
-  keeps its address, and coming back re-opens it where it was. Five minutes after that, once
-  nothing is still writing, the app leaves memory. The next launch is a cold one, a second or
-  two. One process cannot stop and restart the engine, so leaving is the only way to put it down.
-- **MAKE A TICKET.** A new row in the pull-down on any site. It takes a picture of the page and
-  hands it to Movie Tickets (BrightPasses 1.19 or later), which reads it the way it reads a
-  photographed stub. The pass keeps a `webtools://` address back to this page, and OPEN THE
-  PAGE on the pass returns here.
-- **An hour of warmth.** A page that made a ticket stays open in the background for an hour
-  instead of two minutes. Ticketmaster's barcode rotates every fifteen seconds, so the picture is
-  a reminder and the live page is what the gate scans. Coming back within the hour keeps the
-  rest of it.
-- The row is only there when Movie Tickets is on the phone.
+- **SETTINGS.** On the shelf's bar, next to ADD. Rows, each a fact with the tap that changes it:
+  the search engine (DuckDuckGo, Ecosia, Kagi), how long a page stays warm after you leave (1, 2,
+  5, 15 or 30 minutes; a ticket page keeps its hour), Send feedback, a live shake readout, the
+  tutorial, and the install id under the version. HELP moved in here.
+- **The report chip.** Shake-to-report is now the copy every Bright app carries,
+  `com.gios:light-common`. A shake raises a small chip in the corner; tap it for the sheet, BUG
+  or IDEA, a note, a screenshot you can refuse, SEND. A crash offers itself on the next launch.
+  The library gained a hook for this app, so the page log, the wall, the engine version and the
+  bridge's state still ride in the issue.
+- **Shake readout.** "I shook it and nothing happened" now has a number: Settings shows the
+  force in g, the peak, and how many turns of the gesture it counted.
+- **Pictures of the page are no longer black.** The page draws into a TextureView, so the chip's
+  screenshot and MAKE A TICKET's picture show the page and not the hole where it was.
 
-## From 2.1
+## From 2.2
 
-- The search field at the top of the shelf: addresses open, words go to DuckDuckGo, Ecosia or
-  Kagi. Tap the engine's name to switch.
+- A page left in the background parks after the grace and re-opens where it was. The process
+  leaves five minutes after that. MAKE A TICKET sends the page to Movie Tickets and keeps it warm
+  for an hour.
 
 ## Known limits
 

@@ -8,10 +8,6 @@ import androidx.core.content.FileProvider
 import java.io.File
 import java.io.FileOutputStream
 import android.graphics.Bitmap
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
@@ -41,20 +37,23 @@ import androidx.lifecycle.lifecycleScope
 import com.gios.webtools.data.Tool
 import com.gios.webtools.data.ToolKind
 import com.gios.webtools.data.ToolStore
+import com.gios.webtools.data.Prefs
 import com.gios.webtools.gesture.PullDownFrame
 import com.gios.webtools.hw.LightKey
 import com.gios.webtools.hw.LightKeys
 import com.gios.webtools.hw.LocalWheelBus
 import com.gios.webtools.hw.WheelBus
-import com.gios.webtools.report.CrashLog
 import com.gios.webtools.report.PageLog
-import com.gios.webtools.report.Reports
-import com.gios.webtools.report.ShakeGesture
 import com.gios.webtools.ui.AddScreen
 import com.gios.webtools.ui.PulleyMenu
 import com.gios.webtools.ui.InfoScreen
 import com.gios.webtools.ui.ListScreen
-import com.gios.webtools.ui.ReportSheet
+import com.gios.webtools.ui.SettingsScreen
+import com.gios.light.common.report.ReportContext
+import com.gios.light.common.report.Device
+import com.gios.light.common.report.ReportOverlay
+import com.gios.light.common.report.Screenshot
+import androidx.compose.ui.Alignment
 import com.gios.webtools.ui.Starter
 import com.gios.webtools.ui.ToolScreen
 import com.gios.webtools.ui.TutorialScreen
@@ -75,6 +74,7 @@ import java.util.Date
 private sealed class Screen {
     data object Tutorial : Screen()
     data object Home : Screen()
+    data object Settings : Screen()
     data class Add(val message: String? = null) : Screen()
     data class Info(val id: String) : Screen()
     data class Page(val id: String, val saved: Boolean) : Screen()
@@ -101,7 +101,9 @@ class MainActivity : ComponentActivity() {
     private var pulleyDeadzoneDp = 36f
 
     private var page by mutableStateOf<GeckoTool?>(null)
+    private lateinit var prefs: Prefs
     private var engine by mutableStateOf(SearchEngine.DUCKDUCKGO)
+    private var graceMs by mutableStateOf(Warmth.GRACE_MS)
 
     /** A page closed while the app was in the background, to be re-opened where it was. */
     private data class Parked(val tool: Tool, val url: String?, val saved: Boolean)
@@ -118,12 +120,6 @@ class MainActivity : ComponentActivity() {
     private var partsCount = 0
     private val parts = HashMap<Int, String>()
 
-    // Shake to report.
-    private val shake = ShakeGesture()
-    private var sensors: SensorManager? = null
-    private var reportOffer by mutableStateOf(false)
-    private var shot: Bitmap? = null
-    private var probeJson: String? = null
     private var listState = LazyListState()
     private var pageScroll = ScrollState(0)
 
@@ -151,9 +147,10 @@ class MainActivity : ComponentActivity() {
         store.load()
         store.installBuiltIns()
 
-        val prefs = getSharedPreferences("webtools", Context.MODE_PRIVATE)
-        if (!prefs.getBoolean("tutorialSeen", false)) screen = Screen.Tutorial
-        engine = SearchEngine.byName(prefs.getString("engine", null))
+        prefs = Prefs(this)
+        if (!prefs.tutorialSeen) screen = Screen.Tutorial
+        engine = prefs.engine
+        graceMs = prefs.graceMs
 
         val frame = PullDownFrame(this)
         frame.atTop = { contentAtTop() }
@@ -176,32 +173,6 @@ class MainActivity : ComponentActivity() {
 
         handleIntent(intent)
 
-        sensors = getSystemService(Context.SENSOR_SERVICE) as? SensorManager
-
-        // A crash last time files itself: the trace is the report, no sheet to dismiss by accident.
-        CrashLog.take(this)?.let { trace ->
-            Reports.enqueue(
-                this,
-                Reports.compose(
-                    context = this, tool = null, note = "It crashed",
-                    pageLog = trace + "\nengine: GeckoView " + org.mozilla.geckoview.BuildConfig.MOZ_APP_VERSION,
-                    probe = null, screenshot = null, online = online(),
-                ),
-            )
-        }
-        // Post anything queued: a crash, or an earlier shake.
-        lifecycleScope.launch {
-            val sent = Reports.drain(this@MainActivity)
-            if (sent > 0) say(if (sent == 1) "Sent a saved report" else "Sent $sent saved reports")
-        }
-    }
-
-    private val shakeListener = object : SensorEventListener {
-        override fun onSensorChanged(e: SensorEvent) {
-            if (reportOffer) return
-            if (shake.sample(e.values[0], e.values[1], e.values[2], System.currentTimeMillis())) offerReport()
-        }
-        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -235,7 +206,7 @@ class MainActivity : ComponentActivity() {
                     Box(Modifier.fillMaxSize()) {
                         when (val s = screen) {
                             Screen.Tutorial -> TutorialScreen(scroll = pageScroll) {
-                                getSharedPreferences("webtools", Context.MODE_PRIVATE).edit().putBoolean("tutorialSeen", true).apply()
+                                prefs.tutorialSeen = true
                                 go(Screen.Home)
                             }
                             Screen.Home -> ListScreen(
@@ -243,14 +214,26 @@ class MainActivity : ComponentActivity() {
                                 listState = listState,
                                 engine = engine,
                                 onSearch = { typed -> lookUp(typed) },
-                                onCycleEngine = {
-                                    engine = engine.next()
-                                    getSharedPreferences("webtools", Context.MODE_PRIVATE).edit().putString("engine", engine.name).apply()
-                                },
+                                onCycleEngine = { cycleEngine() },
                                 onOpen = { show(it) },
                                 onInfo = { go(Screen.Info(it.id)) },
                                 onAdd = { go(Screen.Add()) },
-                                onHelp = { go(Screen.Tutorial) },
+                                onSettings = { go(Screen.Settings) },
+                            )
+                            Screen.Settings -> SettingsScreen(
+                                scroll = pageScroll,
+                                engine = engine,
+                                onCycleEngine = { cycleEngine() },
+                                graceMs = graceMs,
+                                onCycleGrace = {
+                                    graceMs = Warmth.nextGrace(graceMs)
+                                    prefs.graceMs = graceMs
+                                },
+                                about = "Web Tools ${BuildConfig.VERSION_NAME} · GeckoView " +
+                                    org.mozilla.geckoview.BuildConfig.MOZ_APP_VERSION +
+                                    " · uBlock Origin, always on\n" + Device.summary(this@MainActivity),
+                                onTutorial = { go(Screen.Tutorial) },
+                                onBack = { go(Screen.Home) },
                             )
                             is Screen.Add -> AddScreen(
                                 message = s.message,
@@ -300,14 +283,9 @@ class MainActivity : ComponentActivity() {
                                 deadzoneDp = pulleyDeadzoneDp,
                             )
                         }
-                        if (reportOffer) {
-                            ReportSheet(
-                                toolName = page?.tool?.name,
-                                hasToken = BuildConfig.REPORT_TOKEN.isNotBlank(),
-                                onSend = { note -> sendReport(note) },
-                                onDismiss = { reportOffer = false; shot = null; probeJson = null },
-                            )
-                        }
+                        // The shake / crash / failure offer, from light-common. Bottom right,
+                        // above the action bar and the status strip.
+                        ReportOverlay(corner = Alignment.BottomEnd, bottomInset = 64.dp)
                     }
                 }
             }
@@ -321,6 +299,14 @@ class MainActivity : ComponentActivity() {
         if (next !is Screen.Page) pageScroll = ScrollState(0)
         status = null
         screen = next
+        ReportContext.screen = when (next) {
+            is Screen.Page -> "page"
+            is Screen.Info -> "tool"
+            is Screen.Add -> "add"
+            Screen.Settings -> "settings"
+            Screen.Tutorial -> "tutorial"
+            else -> "shelf"
+        }
     }
 
     private fun back() {
@@ -331,7 +317,7 @@ class MainActivity : ComponentActivity() {
             }
             Screen.Home -> leave()
             Screen.Tutorial -> {
-                getSharedPreferences("webtools", Context.MODE_PRIVATE).edit().putBoolean("tutorialSeen", true).apply()
+                prefs.tutorialSeen = true
                 go(Screen.Home)
             }
             else -> go(Screen.Home)
@@ -341,7 +327,7 @@ class MainActivity : ComponentActivity() {
     /** The pull-down landed on "Tools": back to the list. The list itself has nowhere to pull to. */
     private fun home() {
         if (screen is Screen.Tutorial) {
-            getSharedPreferences("webtools", Context.MODE_PRIVATE).edit().putBoolean("tutorialSeen", true).apply()
+            prefs.tutorialSeen = true
         }
         go(Screen.Home)
     }
@@ -445,6 +431,7 @@ class MainActivity : ComponentActivity() {
         val log = PageLog()
         val p = GeckoTool(this, tool, app.runtime, listener, log)
         page = p
+        app.currentPage = p
         if (tool.id.isNotEmpty() && store.get(tool.id) != null) store.touch(tool.id)
         screen = Screen.Page(tool.id, saved)
         status = if (saved) "Saved copy · " + DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(tool.snapshotAt)) else "Loading"
@@ -488,8 +475,8 @@ class MainActivity : ComponentActivity() {
         say("Taking the picture")
         // A beat, so the pulley has rolled back up before the picture is taken.
         handler.postDelayed({
-            Reports.screenshot(this) { bmp ->
-                if (bmp == null) { say("Could not take the picture"); return@screenshot }
+            Screenshot.capture(window) { bmp ->
+                if (bmp == null) { say("Could not take the picture"); return@capture }
                 val ok = runCatching { sendTicket(bmp, p.tool, url) }.isSuccess
                 if (ok) {
                     readyUntil = System.currentTimeMillis() + Warmth.READY_MS
@@ -541,8 +528,8 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         val now = System.currentTimeMillis()
-        if (page != null) handler.postDelayed(parkJob, Warmth.parkDelay(now, readyUntil))
-        handler.postDelayed(exitJob, Warmth.exitDelay(now, readyUntil))
+        if (page != null) handler.postDelayed(parkJob, Warmth.parkDelay(now, readyUntil, graceMs))
+        handler.postDelayed(exitJob, Warmth.exitDelay(now, readyUntil, graceMs))
     }
 
     override fun onStart() {
@@ -558,11 +545,17 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun cycleEngine() {
+        engine = engine.next()
+        prefs.engine = engine
+    }
+
     private fun closeTool() {
         snapshotJob?.let { handler.removeCallbacks(it) }
         snapshotJob = null
         page?.close()
         page = null
+        app.currentPage = null
     }
 
     private val listener = object : ToolPageListener {
@@ -639,52 +632,6 @@ class MainActivity : ComponentActivity() {
         val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
         return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
             caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-    }
-
-    // ---- reporting ----
-
-    /** The picture is taken at the shake, before the sheet is what is on screen. */
-    private fun offerReport() {
-        Reports.screenshot(this) { bmp ->
-            shot = bmp
-            if (page != null) {
-                app.bridge.probe { json ->
-                    probeJson = json
-                    reportOffer = true
-                }
-            } else {
-                probeJson = null
-                reportOffer = true
-            }
-        }
-    }
-
-    private fun sendReport(note: String) {
-        val extras = "engine: GeckoView " + org.mozilla.geckoview.BuildConfig.MOZ_APP_VERSION +
-            " · bridge " + (if (app.bridge.connected) "connected" else "not connected")
-        val draft = Reports.compose(
-            context = this,
-            tool = page?.tool,
-            note = note,
-            pageLog = (page?.log?.dump() ?: "") + "\n" + extras,
-            probe = probeJson,
-            screenshot = shot,
-            online = online(),
-        )
-        reportOffer = false
-        shot = null
-        probeJson = null
-        Reports.enqueue(this, draft)
-        lifecycleScope.launch {
-            val sent = Reports.drain(this@MainActivity)
-            say(
-                when {
-                    sent > 0 -> "Report sent"
-                    BuildConfig.REPORT_TOKEN.isBlank() -> "Report kept on the phone (no tracker key in this build)"
-                    else -> "Report kept, will send when the tracker answers"
-                },
-            )
-        }
     }
 
     // ---- adding ----
@@ -800,15 +747,11 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         page?.setActive(false)
-        sensors?.unregisterListener(shakeListener)
     }
 
     override fun onResume() {
         super.onResume()
         page?.setActive(true)
-        sensors?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.let {
-            sensors?.registerListener(shakeListener, it, SensorManager.SENSOR_DELAY_GAME)
-        }
     }
 
     override fun onDestroy() {

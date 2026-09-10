@@ -35,8 +35,11 @@ DuckDuckGo, Ecosia or Kagi. No feed, no suggestions, no history you did not ask 
   Firefox's engine passes most. For the rest: sign in on a computer, paste the page's *Copy as
   cURL* into the companion page, scan the code it draws. The cookies travel compressed, in parts
   if needed, and the tool opens signed in.
-- **Shake to report.** Three shakes, a sheet, SEND. The issue lands in the private tracker with
-  the page log, what the page sees, and a grayscale screenshot.
+- **Shake to report.** A shake raises a chip in the corner; tap it for the sheet, BUG or IDEA,
+  SEND. The issue lands in the private tracker with the page log, the engine version and a
+  screenshot. The same reporter every Bright app carries (`com.gios:light-common`).
+- **Settings.** The search engine, how long a page stays warm after you leave, the tutorial,
+  Send feedback, the shake readout, and the install id.
 
 ## Why an engine of its own
 
@@ -85,8 +88,8 @@ color, no motion.
 
 GeckoView has no `CookieManager` and no `evaluateJavascript`. `assets/bridge/` is a small
 WebExtension the app talks to over a native-messaging port: it sets a carried-over login
-(`browser.cookies.set`), answers the shake report's probe from inside the page, and hides app
-banners with a content script. uBlock Origin sits beside it in `assets/ublock/`, the Firefox build
+(`browser.cookies.set`), can answer a probe from inside the page, and hides app banners with a
+content script. uBlock Origin sits beside it in `assets/ublock/`, the Firefox build
 unpacked, installed with `ensureBuiltIn`.
 
 ## Install
@@ -104,6 +107,14 @@ Versioning is `v1.x.x`. CI stamps the patch number from the build.
   `Application.onCreate`, and a runtime inside one killed the page on load.
 - `CrashLog`: an uncaught exception files itself on the next launch.
 - Native libraries compressed in the APK: 108 MB, not 202.
+
+### v2.3.0
+
+- SETTINGS on the shelf's bar: search engine, how long a page stays warm (1 to 30 minutes),
+  Send feedback, the shake readout, the tutorial, the install id.
+- Shake-to-report is the family's shared one (`light-common` 1.9.0): a chip, then the sheet.
+  The page log still rides along.
+- The page renders in a TextureView so a screenshot of it is not black.
 
 ### v2.2.0
 
@@ -169,7 +180,8 @@ dependencies an engine needs.
 - No credential vault. Logins live in the engine's cookie jar, which persists across launches. A
   login code is a one-time transfer, not a stored password.
 - No per-tool launcher icons. One icon, one list.
-- Shake-to-report is this app's own small copy, not `light-common`. GitHub Packages has no
-  anonymous read, and a new repo has no secrets for it.
+- Shake-to-report comes from `com.gios:light-common` 1.9.0 (GitHub Packages; CI reads it with
+  `GITHUB_TOKEN` and `packages: read`). The page log rides in the issue through
+  `LightReport.details`, a hook added to the library for this app.
 
 License: MIT.

@@ -50,7 +50,7 @@ fun ListScreen(
     onOpen: (Tool) -> Unit,
     onInfo: (Tool) -> Unit,
     onAdd: () -> Unit,
-    onHelp: () -> Unit,
+    onSettings: () -> Unit,
 ) {
     WheelScroll(listState)
     var typed by remember { mutableStateOf("") }
@@ -104,6 +104,6 @@ fun ListScreen(
                 }
             }
         }
-        ActionBar(listOf(BarAction("ADD", onAdd), BarAction("HELP", onHelp)))
+        ActionBar(listOf(BarAction("ADD", onAdd), BarAction("SETTINGS", onSettings)))
     }
 }

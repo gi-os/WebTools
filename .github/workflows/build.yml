@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  packages: read
 
 jobs:
   build:
@@ -41,11 +42,14 @@ jobs:
       # The origin wall, the QR parser and the exit gesture are plain JVM code. A hole in the wall
       # is invisible in a screenshot, so the tests gate the build.
       - name: Unit tests
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./gradlew :app:testDebugUnitTest --stacktrace
 
       - name: Build APKs
         env:
           REPORT_TOKEN: ${{ secrets.REPORT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./gradlew :app:assembleDebug :app:assembleRelease --stacktrace
 
       # A release with no tracker key collects reports on the phone and sends none. Say so in the

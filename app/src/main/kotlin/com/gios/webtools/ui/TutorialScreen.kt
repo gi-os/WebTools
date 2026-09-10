@@ -44,7 +44,9 @@ private val PAGES = listOf(
         "ADD gives you three ways in.\n\nScan a code: open gi-os.github.io/WebTools on a " +
             "computer, fill in the name and address, and point the phone at the code it draws.\n\n" +
             "Type an address, or take one of the starters. A page on the shelf stays inside its own " +
-            "site; links elsewhere are dead ends, unless you allow them.",
+            "site; links elsewhere are dead ends, unless you allow them.\n\nSETTINGS holds the " +
+            "search engine, how long a page stays warm in the background, this tutorial, and " +
+            "a way to send feedback.",
     ),
     Page(
         "The pull-down menu",
@@ -72,9 +74,10 @@ private val PAGES = listOf(
     ),
     Page(
         "Something wrong? Shake",
-        "Shake the phone three times and it asks to send a report: what the page did, what the " +
-            "page sees, and a picture of the screen. Add a line about what happened if you like. NO " +
-            "sends nothing.",
+        "Shake the phone and a small chip appears in the corner. Tap it to send a report: a bug " +
+            "or an idea, a line about it if you like, a picture of the screen, and what the page " +
+            "did. Ignore the chip and it goes away. SETTINGS has a Send feedback row that raises " +
+            "the same chip.",
     ),
     Page(
         "No signal",

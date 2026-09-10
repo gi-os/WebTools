@@ -30,6 +30,10 @@ fun ToolScreen(session: GeckoSession, status: String?) {
             AndroidView(
                 factory = { ctx ->
                     GeckoView(ctx).apply {
+                        // A TextureView, not a SurfaceView: a SurfaceView is its own layer under
+                        // the window, and PixelCopy of the window (the report chip's screenshot,
+                        // MAKE A TICKET's picture) would come back black where the page is.
+                        setViewBackend(GeckoView.BACKEND_TEXTURE_VIEW)
                         setBackgroundColor(android.graphics.Color.BLACK)
                         coverUntilFirstPaint(android.graphics.Color.BLACK)
                     }
