@@ -590,6 +590,9 @@ class MainActivity : ComponentActivity() {
         val snapshot = store.snapshotFile(tool.id.ifEmpty { "once" })
         val saved = !live && tool.kind == ToolKind.SITE && tool.id.isNotEmpty() && snapshot.exists() && (forceSaved || !online())
         val log = PageLog()
+        // Blocking is a property of the runtime as much as the session, so it is set before the
+        // session exists and put back when the next tool opens.
+        app.blocking(tool.blocking)
         val p = GeckoTool(this, tool, app.runtime, listener, log)
         page = p
         app.currentPage = p
@@ -962,7 +965,14 @@ class MainActivity : ComponentActivity() {
         }
 
         override fun onLoaded(url: String) {
+            // Keep the page's own account fresh, so a shake reports the load that just failed.
+            app.bridge.trail { app.lastTrail = it }
+            // A sign-in page with blocking on is the commonest cause of "the right password is
+            // wrong": the cookie the form's token needs never survives. Say so once, here.
             val p = page ?: return
+            if (p.tool.blocking && OriginRule.looksLikeSignIn(url)) {
+                say("If it says your password is wrong, hold this tool and turn blocking off")
+            }
             val tool = p.tool
             if (status == "Loading") status = null
             // Freshness: a kept site is re-saved after every live visit, once the page has had a

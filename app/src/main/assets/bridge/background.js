@@ -68,6 +68,25 @@ async function probe() {
   }
 }
 
+// What a sign-in actually did. A form that posts and comes back "incorrect password" leaves a
+// trail — a 400 on the POST, a Set-Cookie the browser refused, a request that never completed —
+// and none of it is visible from the app's side. Kept in a ring here and asked for by the report.
+var trail = [];
+function note(line) {
+  trail.push(line);
+  if (trail.length > 60) trail.shift();
+}
+try {
+  browser.webRequest.onCompleted.addListener(function (d) {
+    if (d.statusCode >= 400 || d.method === "POST") {
+      note(d.statusCode + " " + d.method + " " + String(d.url).slice(0, 160));
+    }
+  }, { urls: ["<all_urls>"] });
+  browser.webRequest.onErrorOccurred.addListener(function (d) {
+    note("ERR " + (d.error || "?") + " " + String(d.url).slice(0, 160));
+  }, { urls: ["<all_urls>"] });
+} catch (e) { note("webRequest unavailable: " + e); }
+
 port.onMessage.addListener(async function (m) {
   if (!m || typeof m !== "object") return;
   try {
@@ -76,6 +95,7 @@ port.onMessage.addListener(async function (m) {
     else if (m.type === "probe") reply(m.id, Object.assign({ ok: true }, await probe()));
     else if (m.type === "article") reply(m.id, await ask({ type: "article" }));
     else if (m.type === "type") reply(m.id, await ask({ type: "type", text: m.text }));
+    else if (m.type === "trail") reply(m.id, { ok: true, trail: trail.join("\n") });
     else if (m.type === "ping") reply(m.id, { ok: true, pong: true });
     else reply(m.id, { ok: false, why: "unknown type " + m.type });
   } catch (e) {

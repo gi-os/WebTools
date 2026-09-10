@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "WebTools bridge",
-  "version": "2.6.0",
+  "version": "3.3.0",
   "description": "The app's hands inside the page: sets a carried-over login, answers the shake report, hides 'open in the app' banners, lifts the article out, types a code in.",
   "browser_specific_settings": {
     "gecko": {
@@ -9,7 +9,7 @@
       "strict_min_version": "128.0"
     }
   },
-  "permissions": ["cookies", "tabs", "nativeMessaging", "storage", "<all_urls>"],
+  "permissions": ["cookies", "tabs", "nativeMessaging", "storage", "webRequest", "<all_urls>"],
   "background": {
     "scripts": ["background.js"],
     "persistent": true

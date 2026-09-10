@@ -25,12 +25,40 @@ class WebToolsApp : Application() {
 
     val bridge = Bridge()
 
+    /**
+     * The page's own account of its last failures, refreshed after every load.
+     *
+     * The bridge answers over a port, which no report can wait for, so the answer is kept here
+     * and printed as it stood. A stale trail is still the trail of the thing that went wrong.
+     */
+    @Volatile var lastTrail: String = ""
+
     /** Whether each bundled extension actually installed. A blank page's first question. */
     @Volatile var ublockReady = false
     @Volatile var bridgeReady = false
 
     /** uBlock, once installed, so a tool can be opened without it. */
     @Volatile var ublock: org.mozilla.geckoview.WebExtension? = null
+
+    /**
+     * Everything blocking touches, for one tool that wants none of it.
+     *
+     * Turning off a session's tracking protection is only a third of the job. uBlock is an
+     * extension and runs whatever the session thinks, and the cookie rule lives on the runtime,
+     * not the session — and the cookie rule is the one that breaks a sign-in. A form that posts
+     * to `login.example` and comes back "incorrect password" with the right password is almost
+     * always a cookie the browser refused to keep, not a password the site refused to accept.
+     */
+    fun blocking(on: Boolean) {
+        val want = if (on) ContentBlocking.CookieBehavior.ACCEPT_NON_TRACKERS else ContentBlocking.CookieBehavior.ACCEPT_ALL
+        runCatching { runtime.settings.contentBlocking.setCookieBehavior(want) }
+        val ext = ublock ?: return
+        val wec = runtime.webExtensionController
+        runCatching {
+            if (on) wec.enable(ext, org.mozilla.geckoview.WebExtensionController.EnableSource.APP)
+            else wec.disable(ext, org.mozilla.geckoview.WebExtensionController.EnableSource.APP)
+        }
+    }
 
     /** The page on screen, if any, so a bug report can carry its log. Set by MainActivity. */
     @Volatile var currentPage: GeckoTool? = null
@@ -51,6 +79,12 @@ class WebToolsApp : Application() {
                 appendLine("bridge: " + if (bridge.connected) "connected" else "not connected")
                 appendLine("extensions: ublock " + (if (ublockReady) "installed" else "MISSING") + ", bridge " + (if (bridgeReady) "installed" else "MISSING"))
                 appendLine("blocking: " + (if (p?.tool?.blocking == false) "off for this tool" else "on") + ", ETP standard")
+                if (lastTrail.isNotBlank()) {
+                    appendLine()
+                    appendLine("what the page asked for (4xx, POSTs, failures):")
+                    appendLine(lastTrail.take(2_500))
+                    appendLine()
+                }
                 if (p != null) {
                     appendLine("tool: ${p.tool.name} (${p.tool.kind}) home ${p.tool.url}")
                     appendLine("wall: " + (p.tool.origins.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: "none"))

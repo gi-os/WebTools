@@ -100,6 +100,11 @@ class Bridge {
         }
     }
 
+    /** The last few failed or posted requests the page made, for a report. */
+    fun trail(done: (String) -> Unit) {
+        send("trail", JSONObject()) { r -> done(r?.optString("trail").orEmpty()) }
+    }
+
     /** Types [text] into the page's code field. */
     fun type(text: String, done: (typed: Boolean, why: String?) -> Unit) {
         send("type", JSONObject().put("text", text)) { r ->
