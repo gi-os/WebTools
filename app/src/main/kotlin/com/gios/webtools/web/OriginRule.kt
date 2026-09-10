@@ -56,6 +56,9 @@ object OriginRule {
         val rest = u.substringAfter("://").substringAfter('/', "")
         val words = listOf("auth", "login", "signin", "sign-in", "sso", "oauth", "openid", "identity", "session", "account", "connect", "callback")
         if (words.any { host.contains(it) }) return true
+        // A host whose first label is one of these is an identity host by convention, even
+        // though the label spells none of the words above: id.ticketmaster.com, idp.example.
+        if (host.substringBefore('.') in setOf("id", "idp", "secure", "my")) return true
         if (words.any { rest.substringBefore('?').contains(it) }) return true
         return rest.contains("redirect_uri=") || rest.contains("client_id=") || rest.contains("response_type=")
     }
