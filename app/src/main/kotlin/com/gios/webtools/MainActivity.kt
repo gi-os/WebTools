@@ -59,6 +59,7 @@ import com.gios.webtools.ui.ToolScreen
 import com.gios.webtools.ui.TutorialScreen
 import com.gios.webtools.ui.theme.WebToolsTheme
 import com.gios.webtools.web.GeckoTool
+import org.mozilla.geckoview.GeckoView
 import com.gios.webtools.web.OriginRule
 import com.gios.webtools.web.QrPayload
 import com.gios.webtools.web.Search
@@ -101,6 +102,8 @@ class MainActivity : ComponentActivity() {
     private var pulleyDeadzoneDp = 36f
 
     private var page by mutableStateOf<GeckoTool?>(null)
+    /** The view the page draws in, for a picture of the page itself. */
+    private var toolView: GeckoView? = null
     private lateinit var prefs: Prefs
     private var engine by mutableStateOf(SearchEngine.DUCKDUCKGO)
     private var graceMs by mutableStateOf(Warmth.GRACE_MS)
@@ -184,9 +187,17 @@ class MainActivity : ComponentActivity() {
         val data = intent?.data ?: return
         if (data.scheme != "webtools") return
         when (data.host) {
+            // webtools://open/<id>[?u=<address>]: a tool, at its home or at one page of it,
+            // live rather than the saved copy. Movie Tickets sends you back here from a pass.
             "open" -> {
                 val id = data.pathSegments.firstOrNull() ?: return
-                store.get(id)?.let { show(it) }
+                val tool = store.get(id) ?: return
+                val u = data.getQueryParameter("u")?.takeIf { it.startsWith("http") }
+                when {
+                    u == null -> show(tool)
+                    OriginRule.allows(tool.origins, Tool.hostOf(u)) -> show(tool, resumeAt = u, live = true)
+                    else -> lookUp(u)
+                }
             }
             // webtools://go?u=<address>: a page that was never on the shelf, opened again by
             // whoever was handed its address (Movie Tickets, from a pass made off it).
@@ -271,7 +282,7 @@ class MainActivity : ComponentActivity() {
                             }
                             is Screen.Page -> {
                                 val p = page
-                                if (p == null) LaunchedEffect(Unit) { go(Screen.Home) } else ToolScreen(session = p.session, status = status)
+                                if (p == null) LaunchedEffect(Unit) { go(Screen.Home) } else ToolScreen(session = p.session, status = status, onView = { toolView = it })
                             }
                         }
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
@@ -423,11 +434,11 @@ class MainActivity : ComponentActivity() {
 
     // ---- tools ----
 
-    private fun show(tool: Tool, forceSaved: Boolean = false, resumeAt: String? = null) {
+    private fun show(tool: Tool, forceSaved: Boolean = false, resumeAt: String? = null, live: Boolean = false) {
         closeTool()
         readyUntil = 0L
         val snapshot = store.snapshotFile(tool.id.ifEmpty { "once" })
-        val saved = tool.kind == ToolKind.SITE && tool.id.isNotEmpty() && snapshot.exists() && (forceSaved || !online())
+        val saved = !live && tool.kind == ToolKind.SITE && tool.id.isNotEmpty() && snapshot.exists() && (forceSaved || !online())
         val log = PageLog()
         val p = GeckoTool(this, tool, app.runtime, listener, log)
         page = p
@@ -474,18 +485,34 @@ class MainActivity : ComponentActivity() {
         if (!url.startsWith("http")) { say("Not a page to make a ticket from"); return }
         say("Taking the picture")
         // A beat, so the pulley has rolled back up before the picture is taken.
-        handler.postDelayed({
-            Screenshot.capture(window) { bmp ->
-                if (bmp == null) { say("Could not take the picture"); return@capture }
-                val ok = runCatching { sendTicket(bmp, p.tool, url) }.isSuccess
-                if (ok) {
-                    readyUntil = System.currentTimeMillis() + Warmth.READY_MS
-                    say("Sent to Movie Tickets. This page stays ready for an hour.")
-                } else {
-                    say("Movie Tickets is not on this phone")
-                }
-            }
-        }, 250)
+        handler.postDelayed({ capturePage { bmp -> ticketTaken(bmp, p.tool, url) } }, 250)
+    }
+
+    /**
+     * The page's own pixels, from the engine, so the picture is the page and nothing else: no
+     * status strip, no menu, and no black hole where a SurfaceView used to be. The window is the
+     * fallback if the engine has nothing to give.
+     */
+    private fun capturePage(done: (Bitmap?) -> Unit) {
+        val view = toolView
+        if (view == null) { Screenshot.capture(window, done); return }
+        runCatching {
+            view.capturePixels().accept(
+                { bmp -> if (bmp != null) done(bmp) else Screenshot.capture(window, done) },
+                { Screenshot.capture(window, done) },
+            )
+        }.onFailure { Screenshot.capture(window, done) }
+    }
+
+    private fun ticketTaken(bmp: Bitmap?, tool: Tool, url: String) {
+        if (bmp == null) { say("Could not take the picture"); return }
+        val ok = runCatching { sendTicket(bmp, tool, url) }.isSuccess
+        if (ok) {
+            readyUntil = System.currentTimeMillis() + Warmth.READY_MS
+            say("Sent to Movie Tickets. This page stays ready for an hour.")
+        } else {
+            say("Movie Tickets is not on this phone")
+        }
     }
 
     private fun sendTicket(bmp: Bitmap, tool: Tool, url: String) {
@@ -493,7 +520,9 @@ class MainActivity : ComponentActivity() {
         val file = File(dir, "ticket.jpg")
         FileOutputStream(file).use { bmp.compress(Bitmap.CompressFormat.JPEG, 90, it) }
         val uri = FileProvider.getUriForFile(this, "com.gios.webtools.share", file)
-        val back = if (tool.id.isNotEmpty()) "webtools://open/${tool.id}" else "webtools://go?u=" + Uri.encode(url)
+        // The page you were on, not the tool's home. The tool's id keeps its wall and its row.
+        val back = if (tool.id.isNotEmpty()) "webtools://open/${tool.id}?u=" + Uri.encode(url)
+        else "webtools://go?u=" + Uri.encode(url)
         val intent = Intent(Intent.ACTION_SEND)
             .setPackage(TICKETS_PACKAGE)
             .setType("image/jpeg")

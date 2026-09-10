@@ -114,7 +114,8 @@ Versioning is `v1.x.x`. CI stamps the patch number from the build.
   Send feedback, the shake readout, the tutorial, the install id.
 - Shake-to-report is the family's shared one (`light-common` 1.9.1): a chip, then the sheet.
   The page log still rides along.
-- The page renders in a TextureView so a screenshot of it is not black.
+- MAKE A TICKET's picture comes from the engine (`capturePixels`), so it is the page and not a
+  black window. OPEN THE PAGE on the pass returns to that page, live, via `webtools://open/<id>?u=`.
 
 ### v2.2.0
 

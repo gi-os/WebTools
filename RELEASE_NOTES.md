@@ -13,8 +13,14 @@
   bridge's state still ride in the issue.
 - **Shake readout.** "I shook it and nothing happened" now has a number: Settings shows the
   force in g, the peak, and how many turns of the gesture it counted.
-- **Pictures of the page are no longer black.** The page draws into a TextureView, so the chip's
-  screenshot and MAKE A TICKET's picture show the page and not the hole where it was.
+- **MAKE A TICKET takes a picture of the page, not of the window.** The picture comes from the
+  engine itself, so it is the page and nothing else. In 2.2 it came off the window, and the page
+  lived in a SurfaceView, which a window capture cannot see: the picture Movie Tickets got was
+  black, and there was nothing on it to read. The report chip's screenshot had the same hole;
+  the page now draws into a TextureView so that one shows the page too.
+- **OPEN THE PAGE on a pass returns to the page you made it from.** Not the tool's home, and not
+  the saved copy. The address travels as `webtools://open/<id>?u=<page>`; a page outside the
+  tool's wall opens as a searched page instead.
 
 ## From 2.2
 

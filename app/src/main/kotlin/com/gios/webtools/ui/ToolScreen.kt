@@ -24,7 +24,7 @@ import org.mozilla.geckoview.GeckoView
  * to say: loading, a blocked link, or that this is the saved copy.
  */
 @Composable
-fun ToolScreen(session: GeckoSession, status: String?) {
+fun ToolScreen(session: GeckoSession, status: String?, onView: (GeckoView) -> Unit = {}) {
     Column(Modifier.fillMaxSize().background(Color.Black)) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             AndroidView(
@@ -35,6 +35,7 @@ fun ToolScreen(session: GeckoSession, status: String?) {
                         // MAKE A TICKET's picture) would come back black where the page is.
                         setViewBackend(GeckoView.BACKEND_TEXTURE_VIEW)
                         setBackgroundColor(android.graphics.Color.BLACK)
+                        onView(this)
                         coverUntilFirstPaint(android.graphics.Color.BLACK)
                     }
                 },
