@@ -52,7 +52,8 @@ private val PAGES = listOf(
         "The pull-down menu",
         "From the top of any page, pull down. A menu unrolls from the top edge, one row at a " +
             "time, each lit as it comes. Let go on a lit row to do it. Let go early and nothing " +
-            "happens. Pull all the way and it is always TOOLS: back to the list.\n\nSAVE A COPY " +
+            "happens. The first row is BACK, one page. Pull all the way and it is always TOOLS: " +
+            "back to the list.\n\nSAVE A COPY " +
             "keeps the page as a PDF for when there is no signal. READER VIEW shows the text only. " +
             "SET AS HOME makes the page you are on the tool's start page (KEEP ON SHELF, for a page " +
             "you searched for). MAKE A TICKET sends a picture of the page to Movie Tickets and " +
