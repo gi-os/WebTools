@@ -19,6 +19,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -65,6 +66,10 @@ import androidx.compose.ui.unit.dp
 import com.gios.webtools.ui.Starter
 import com.gios.webtools.ui.ToolScreen
 import com.gios.webtools.ui.TutorialScreen
+import androidx.compose.foundation.background
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import com.gios.webtools.ui.theme.Metrics
 import com.gios.webtools.ui.theme.WebToolsTheme
 import com.gios.webtools.web.GeckoTool
 import org.mozilla.geckoview.GeckoView
@@ -315,7 +320,6 @@ class MainActivity : ComponentActivity() {
                                 onAskBrowser = { askBrowserRole() },
                                 passkeys = passkeyState(),
                                 onPasskeys = { say(passkeyAdvice()) },
-                                onWifiSignIn = { signInToWifi(null) },
                                 about = "Web Tools ${BuildConfig.VERSION_NAME} · GeckoView " +
                                     org.mozilla.geckoview.BuildConfig.MOZ_APP_VERSION +
                                     " · uBlock Origin, always on\n" + Device.summary(this@MainActivity),
@@ -372,6 +376,22 @@ class MainActivity : ComponentActivity() {
                                 pitchDp = pulleyPitchDp,
                                 deadzoneDp = pulleyDeadzoneDp,
                             )
+                        }
+                        // A word about what just happened, on any screen but a page (a page has
+                        // its own strip along the bottom). Without this, every row in Settings
+                        // that only reports something read as a row that does nothing.
+                        val note = status
+                        if (note != null && screen !is Screen.Page) {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+                                Box(
+                                    Modifier
+                                        .padding(bottom = Metrics.bar + 8.dp, start = Metrics.pad, end = Metrics.pad)
+                                        .background(Color.White)
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                ) {
+                                    Text(note, style = MaterialTheme.typography.bodySmall, color = Color.Black)
+                                }
+                            }
                         }
                         // The shake / crash / failure offer, from light-common. Bottom right,
                         // above the action bar and the status strip.
@@ -629,14 +649,31 @@ class MainActivity : ComponentActivity() {
         isBrowser = rm != null && rm.isRoleAvailable(RoleManager.ROLE_BROWSER) && rm.isRoleHeld(RoleManager.ROLE_BROWSER)
     }
 
-    /** Ask the system to make this the browser. The dialog is the platform's; LightOS may lack it. */
+    /**
+     * Make this the browser, by whichever door the phone leaves open.
+     *
+     * Three, in order: the role dialog, which is the proper one; the Default apps screen, which
+     * LightOS may or may not have an activity for; and, when neither answers, the one shell line
+     * that always works, said out loud so it can be run from BrightControl. The row used to stop
+     * at the first door and report nothing, which read as a row that does nothing at all.
+     */
     private fun askBrowserRole() {
         val rm = getSystemService(RoleManager::class.java)
-        if (rm == null || !rm.isRoleAvailable(RoleManager.ROLE_BROWSER)) { say("This phone has no browser role to give"); return }
-        if (rm.isRoleHeld(RoleManager.ROLE_BROWSER)) { say("Web Tools is the browser already"); return }
-        if (runCatching { startActivity(rm.createRequestRoleIntent(RoleManager.ROLE_BROWSER)) }.isFailure) {
-            say("The system would not ask. Over ADB: cmd role add-role-holder android.app.role.BROWSER com.gios.webtools")
+        if (rm != null && rm.isRoleHeld(RoleManager.ROLE_BROWSER)) { say("Web Tools is already the browser"); return }
+        if (rm != null && rm.isRoleAvailable(RoleManager.ROLE_BROWSER)) {
+            if (runCatching { startActivity(rm.createRequestRoleIntent(RoleManager.ROLE_BROWSER)) }.isSuccess) return
         }
+        val settings = listOf(
+            Intent("android.settings.MANAGE_DEFAULT_APPS_SETTINGS"),
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")),
+        )
+        for (i in settings) {
+            if (runCatching { startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess) {
+                say("Pick Web Tools under Browser app")
+                return
+            }
+        }
+        say("This phone has no screen for it. BrightControl › ADB › GRANT ALL sets it, or: cmd role add-role-holder android.app.role.BROWSER com.gios.webtools")
     }
 
     /**
@@ -646,17 +683,17 @@ class MainActivity : ComponentActivity() {
     private fun passkeyState(): String {
         val cur = runCatching { Settings.Secure.getString(contentResolver, "credential_service") }.getOrNull().orEmpty()
         return when {
-            cur.contains(BITWARDEN_PACKAGE) -> "Bitwarden answers for them"
-            cur.isNotBlank() -> "Provider: " + cur.substringBefore(':').substringBefore('/')
-            installed(BITWARDEN_PACKAGE) -> "Bitwarden is here but not set as the provider · tap"
-            else -> "No provider on the phone · Bitwarden would do"
+            cur.contains(BITWARDEN_PACKAGE) -> "bitwarden"
+            cur.isNotBlank() -> cur.substringBefore(':').substringBefore('/').substringAfterLast('.')
+            installed(BITWARDEN_PACKAGE) -> "not set"
+            else -> "none"
         }
     }
 
-    private fun passkeyAdvice(): String = if (installed(BITWARDEN_PACKAGE)) {
-        "BrightControl › ADB & grants › GRANT ALL sets Bitwarden as the provider. Or over ADB: settings put secure credential_service $BITWARDEN_PACKAGE/$BITWARDEN_PACKAGE.Autofill.CredentialProviderService"
-    } else {
-        "Install Bitwarden, then GRANT ALL in BrightControl"
+    private fun passkeyAdvice(): String = when {
+        passkeyState() == "bitwarden" -> "Bitwarden answers for passkeys. It asks once whether to trust Web Tools."
+        installed(BITWARDEN_PACKAGE) -> "Bitwarden is here but not set. BrightControl › ADB & grants › GRANT ALL sets it."
+        else -> "No passkey provider on the phone. Install Bitwarden, then GRANT ALL in BrightControl."
     }
 
     private fun signInToWifi(intent: Intent?) {

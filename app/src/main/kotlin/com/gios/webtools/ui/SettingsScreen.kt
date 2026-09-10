@@ -7,13 +7,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gios.light.common.report.Feedback
-import com.gios.light.common.report.ShakeMonitor
 import com.gios.webtools.hw.WheelScroll
 import com.gios.webtools.ui.theme.Faint
 import com.gios.webtools.ui.theme.Metrics
@@ -37,33 +33,25 @@ fun SettingsScreen(
     onAskBrowser: () -> Unit,
     passkeys: String,
     onPasskeys: () -> Unit,
-    onWifiSignIn: () -> Unit,
     about: String,
     onTutorial: () -> Unit,
     onBack: () -> Unit,
 ) {
     WheelScroll(scroll)
-    // The gesture readout answers "I shook it and nothing happened" with a number.
-    val shake by ShakeMonitor.reading.collectAsStateWithLifecycle()
-    DisposableEffect(Unit) {
-        ShakeMonitor.watch()
-        onDispose { ShakeMonitor.unwatch() }
-    }
 
     Column(Modifier.fillMaxSize()) {
         TopBar("Settings")
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll)) {
             FactRow("Search engine", engine.label, lit = true, onClick = onCycleEngine)
             FactRow("Keep a page warm", Warmth.graceLabel(graceMs), lit = true, onClick = onCycleGrace)
-            FactRow("The phone's browser", if (isBrowser) "yes" else "not yet", lit = isBrowser, onClick = onAskBrowser)
-            FactRow("Passkeys", passkeys, lit = passkeys.contains("bitwarden", ignoreCase = true), onClick = onPasskeys)
-            FactRow("Wi-Fi sign-in", "→", onClick = onWifiSignIn)
-            FactRow("Send feedback", "or shake", onClick = { Feedback.ask() })
             FactRow(
-                "Shake",
-                "%.2f g · peak %.2f · %d/%d".format(shake.magnitudeG, shake.peakG, shake.turns, shake.turnsNeeded),
-                onClick = {},
+                if (isBrowser) "The phone's browser" else "Set as default browser",
+                if (isBrowser) "yes" else "not yet",
+                lit = isBrowser,
+                onClick = onAskBrowser,
             )
+            FactRow("Passkeys", passkeys, lit = passkeys == "bitwarden", onClick = onPasskeys)
+            FactRow("Send feedback", "or shake", onClick = { Feedback.ask() })
             FactRow("Show the tutorial", "7 pages", onClick = onTutorial)
             androidx.compose.material3.Text(
                 about,

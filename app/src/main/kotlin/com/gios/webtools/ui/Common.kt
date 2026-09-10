@@ -175,10 +175,12 @@ fun FactRow(title: String, state: String?, lit: Boolean = false, onClick: (() ->
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(title, style = MaterialTheme.typography.bodyMedium, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+        // The title yields, not the state: a state clipped to "P" says nothing at all, while a
+        // long title with its end trimmed still says which row this is.
+        Text(title, style = MaterialTheme.typography.bodyMedium, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         if (state != null) {
             Spacer(Modifier.width(12.dp))
-            Text(state.uppercase(), style = Mono.label, color = if (lit) Color.White else Dim, maxLines = 1)
+            Text(state.uppercase(), style = Mono.label, color = if (lit) Color.White else Dim, maxLines = 1, softWrap = false)
         }
     }
     Rule()

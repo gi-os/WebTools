@@ -30,66 +30,47 @@ private data class Page(val title: String, val body: String)
 
 private val PAGES = listOf(
     Page(
-        "A shelf, and one field",
-        "Web Tools keeps a short list of web pages you need now and then: a ticket, a train " +
-            "status, a form you fill twice a year. That is the shelf.\n\nThe field above it is the " +
-            "other half. Type an address and it opens. Type words and they go to a search engine: " +
-            "DuckDuckGo, Ecosia or Kagi, chosen in SETTINGS. Nothing typed there is kept.\n\nUnderneath is Firefox's engine, so sites see a real " +
-            "browser. Ads and trackers are blocked by uBlock Origin, always.",
+        "The shelf",
+        "A short list of pages you need now and then. A ticket. The train. A form you fill twice " +
+            "a year.\n\nTap a name to open it. Hold a name to see its page.",
     ),
     Page(
-        "Adding one",
-        "ADD gives you three ways in.\n\nScan a code: open gi-os.github.io/WebTools on a " +
-            "computer, fill in the name and address, and point the phone at the code it draws.\n\n" +
-            "Type an address, or take one of the starters. A page on the shelf stays inside its own " +
-            "site; links elsewhere are dead ends, unless you allow them.\n\nHold a tool and PUT IN A " +
-            "FOLDER files it with others: Ticketmaster, AXS and DICE arrive as one row called Tickets, " +
-            "which opens to the three of them. A folder is only a name on its tools, so it goes when " +
-            "the last one leaves.\n\nSETTINGS holds the " +
-            "search engine, how long a page stays warm in the background, this tutorial, and " +
-            "a way to send feedback.\n\nDOWNLOADS holds what a page handed over instead of showing: a " +
-            "PDF, a picture, a calendar file. Tap one to open it.",
+        "The field",
+        "Type an address and it opens. Type anything else and it goes to DuckDuckGo, Ecosia or " +
+            "Kagi — whichever you picked in Settings.\n\nNothing you type there is kept. To keep a " +
+            "page, pull down on it and choose KEEP ON SHELF.",
     ),
     Page(
-        "The pull-down menu",
-        "From the top of any page, pull down. A menu unrolls from the top edge, one row at a " +
-            "time, each lit as it comes. Let go on a lit row to do it. Let go early and nothing " +
-            "happens. The first rows are BACK, FORWARD and REFRESH. Pull all the way and it is always TOOLS: " +
-            "back to the list.\n\nCONVERT is two rows behind one: let go on it and the next pull offers " +
-            "MAKE A TICKET and SEND TO LIBRARY.\n\nSAVE A COPY 
-            "keeps the page as a PDF for when there is no signal. READER VIEW shows the text only. " +
-            "SET AS HOME makes the page you are on the tool's start page (KEEP ON SHELF, for a page " +
-            "you searched for). MAKE A TICKET sends a picture of the page to Movie Tickets and " +
-            "keeps the page ready for an hour. SEND TO LIBRARY lifts the article out into the Library " +
-            "as a book. 2FA CODE asks Authenticator for this site's code and types it in. Each row is " +
-            "there only when the app it needs is on the phone.",
+        "Adding a page",
+        "ADD has three ways in: scan a code made at gi-os.github.io/WebTools, type an address, or " +
+            "take a starter.\n\nA page on the shelf stays inside its own site. Links anywhere else " +
+            "stop, and the bottom line says which one did. Allow it from the tool's page if you " +
+            "meant it.",
     ),
     Page(
-        "The wheel and the button",
-        "Turn the wheel to scroll any page or list. Pressing it is still the flashlight.\n\nThe " +
-            "camera button steps back one page, then to the list. The home key leaves the app, as " +
-            "everywhere.",
+        "Folders",
+        "Hold a tool, tap PUT IN A FOLDER, name it. Anything with the same name sits in one row.\n\n" +
+            "Ticketmaster, AXS and DICE come as one row called Tickets.\n\nA folder is only a name " +
+            "on its tools. Take the name off the last one and the folder is gone.",
     ),
     Page(
-        "When a sign-in refuses",
-        "A few sign-in pages run a bot check that refuses anything but a browser they know. " +
-            "Firefox's engine passes most of them. When one still refuses, sign in on a " +
-            "computer. On gi-os.github.io/WebTools, under Bring a login, paste the page's Copy as " +
-            "cURL from DevTools. Scan the code it draws, in parts if there are several. The tool " +
-            "opens signed in.",
+        "Pull down",
+        "Start at the very top edge and pull, the way you pull a notification shade. Rows unroll " +
+            "one at a time. Let go on the lit one.\n\nLet go early and nothing happens. Pull all the " +
+            "way and you are back at the shelf.\n\nBACK, FORWARD, REFRESH. SAVE A COPY keeps the page " +
+            "as a PDF. READER VIEW drops everything but the words. CONVERT sends the page to Movie " +
+            "Tickets or the Library.",
     ),
     Page(
-        "Something wrong? Shake",
-        "Shake the phone and a small chip appears in the corner. Tap it to send a report: a bug " +
-            "or an idea, a line about it if you like, a picture of the screen, and what the page " +
-            "did. Ignore the chip and it goes away. SETTINGS has a Send feedback row that raises " +
-            "the same chip.",
+        "The wheel",
+        "Turn it to scroll. Press it for the flashlight, as always.\n\nThe camera button goes back " +
+            "one page, then to the shelf.",
     ),
     Page(
         "No signal",
-        "Hold a tool in the list to see its page. Turn on Keeping a copy and the page is saved " +
-            "as a PDF after every visit. With no signal, that copy opens instead.\n\nOpen a ticket at " +
-            "home and it is on the phone at the gate.",
+        "Turn on Keeping a copy and the page is printed to a PDF after every visit.\n\nOpen a " +
+            "ticket at home. It is on the phone at the gate.\n\nSomething broken? Shake the phone. " +
+            "A chip appears in the corner; tap it to send what went wrong.",
     ),
 )
 
