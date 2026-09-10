@@ -55,7 +55,7 @@ val STARTERS = listOf(
     // Ticketmaster's sign-in runs reCAPTCHA Enterprise + FingerprintJS. Firefox's engine is a real
     // browser to it; if it still refuses, the login comes over from a computer by code.
     Starter("Ticketmaster", "https://www.ticketmaster.com/", listOf("ticketmaster.com", "livenation.com"), keep = false, folder = "Tickets"),
-    Starter("AXS", "https://www.axs.com/", listOf("axs.com"), keep = false, folder = "Tickets"),
+    Starter("AXS", "https://www.axs.com/", listOf("axs.com", "axs.co.uk", "axsevents.com"), keep = false, folder = "Tickets"),
     Starter("DICE", "https://dice.fm/", listOf("dice.fm"), keep = false, folder = "Tickets"),
     Starter("Wikipedia", "https://en.m.wikipedia.org/", listOf("wikipedia.org", "wikimedia.org"), keep = false, reader = true),
 )

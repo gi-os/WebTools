@@ -29,7 +29,7 @@ android {
         targetSdk = 35
         // CI overwrites both from the workflow run number; see .github/workflows/build.yml
         versionCode = 1
-        versionName = "3.0.0"
+        versionName = "2.7.0"
 
         buildConfigField("String", "REPORT_TOKEN", "\"" + reportToken.replace("\\", "").replace("\"", "") + "\"")
 

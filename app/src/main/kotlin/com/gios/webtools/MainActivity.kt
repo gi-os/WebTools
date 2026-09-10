@@ -186,7 +186,6 @@ class MainActivity : ComponentActivity() {
         graceMs = prefs.graceMs
 
         val frame = PullDownFrame(this)
-        frame.atTop = { contentAtTop() }
         frame.itemCount = { pulleyItems().size }
         frame.onProgress = { travel, picked -> pullTravel = travel; pullPicked = picked }
         frame.onSelect = { index -> pulleyPick(index) }
@@ -389,6 +388,7 @@ class MainActivity : ComponentActivity() {
         if (screen is Screen.Page && next !is Screen.Page) closeTool()
         if (next !is Screen.Page) pageScroll = ScrollState(0)
         status = null
+        pulleyPage = false
         screen = next
         ReportContext.screen = when (next) {
             is Screen.Page -> "page"
@@ -446,25 +446,43 @@ class MainActivity : ComponentActivity() {
         const val TICKET = "Make a ticket"
         const val BACK = "Back"
         const val FORWARD = "Forward"
+        const val REFRESH = "Refresh"
+        const val CONVERT = "Convert…"
         const val LIBRARY = "Send to library"
-        const val CODE = "2FA code"
     }
+
+    /**
+     * Which page of the pull-down the next pull will draw.
+     *
+     * Two ways to turn this page into something else — a ticket, a book — is two rows of a menu
+     * whose whole point is that the deepest pull is always the exit. They are one row now,
+     * CONVERT, and letting go on it means the next pull is the short list of what to convert
+     * into. It resets whenever a page opens, so a menu is never a surprise.
+     */
+    private var pulleyPage by mutableStateOf(false)
 
     /** Rows top-to-bottom, unrolling with the pull; TOOLS is last so the longest pull always leaves. */
     private fun pulleyItems(): List<String> {
         val p = page
         return when (screen) {
             Screen.Home -> emptyList()
-            is Screen.Page -> if (p == null) listOf(Pull.TOOLS) else buildList {
+            is Screen.Page -> if (p == null) listOf(Pull.TOOLS) else if (pulleyPage) buildList {
+                // The convert page: what this page could become, and the way out.
+                if (ticketsInstalled) add(Pull.TICKET)
+                if (libraryInstalled) add(Pull.LIBRARY)
+                add(Pull.TOOLS)
+            } else buildList {
                 // The shortest pull is one page back, the next one forward; each row is there
                 // only when the page has somewhere to go. Never home: TOOLS is for that.
                 if (p.canGoBack) add(Pull.BACK)
                 if (p.canGoForward) add(Pull.FORWARD)
+                add(Pull.REFRESH)
                 if (p.tool.kind == ToolKind.SITE) {
-                    add(Pull.SAVE)
-                    if (ticketsInstalled) add(Pull.TICKET)
-                    if (libraryInstalled && p.currentUrl?.startsWith("http") == true) add(Pull.LIBRARY)
-                    if (authInstalled && p.currentUrl?.startsWith("http") == true) add(Pull.CODE)
+                    // A copy is a file kept beside a tool's row, so only a tool on the shelf can
+                    // have one. A page you searched for gets KEEP ON SHELF instead, further down.
+                    if (p.tool.id.isNotEmpty()) add(Pull.SAVE)
+                    val onHttp = p.currentUrl?.startsWith("http") == true
+                    if (onHttp && (ticketsInstalled || libraryInstalled)) add(Pull.CONVERT)
                     add(if (p.tool.reader) Pull.READER_OFF else Pull.READER_ON)
                     add(if (p.tool.id.isEmpty()) Pull.KEEP else Pull.SET_HOME)
                 }
@@ -477,13 +495,22 @@ class MainActivity : ComponentActivity() {
     private fun pulleyPick(index: Int) {
         val item = pulleyItems().getOrNull(index) ?: return
         val p = page
+        // Every row but CONVERT itself leaves the convert page behind.
+        if (item != Pull.CONVERT) pulleyPage = false
         when (item) {
             Pull.TOOLS -> home()
+            Pull.CONVERT -> {
+                pulleyPage = true
+                say("Pull again: make a ticket, or send to the library")
+            }
+            Pull.REFRESH -> {
+                p?.reload()
+                say("Reloading")
+            }
             Pull.BACK -> p?.goBack()
             Pull.FORWARD -> p?.goForward()
             Pull.TICKET -> makeTicket()
             Pull.LIBRARY -> sendToLibrary()
-            Pull.CODE -> askForCode()
             Pull.SET_HOME -> {
                 val url = p?.currentUrl ?: return
                 if (!url.startsWith("http")) { say("Not a page to set as home"); return }
@@ -526,18 +553,12 @@ class MainActivity : ComponentActivity() {
         finish()
     }
 
-    /** The pull-down may start only when the content is at its top, and never on the list. */
-    private fun contentAtTop(): Boolean = when (screen) {
-        is Screen.Page -> (page?.scrollY ?: 0) <= 0
-        Screen.Home -> false
-        else -> pageScroll.value == 0
-    }
-
     // ---- tools ----
 
     private fun show(tool: Tool, forceSaved: Boolean = false, resumeAt: String? = null, live: Boolean = false) {
         closeTool()
         readyUntil = 0L
+        pulleyPage = false
         val snapshot = store.snapshotFile(tool.id.ifEmpty { "once" })
         val saved = !live && tool.kind == ToolKind.SITE && tool.id.isNotEmpty() && snapshot.exists() && (forceSaved || !online())
         val log = PageLog()
@@ -841,6 +862,14 @@ class MainActivity : ComponentActivity() {
             val tool = page?.tool
             if (tool != null && tool.id.isNotEmpty() && host.contains('.')) lastBlocked[tool.id] = host.lowercase().removePrefix("www.")
             say("Stays inside " + (tool?.origins?.firstOrNull() ?: "this site") + " · blocked $host · hold the tool to allow it")
+        }
+
+        override fun onSignInHop(host: String) {
+            val tool = page?.tool ?: return
+            if (tool.id.isNotEmpty()) {
+                store.update(tool.id) { t -> if (t.origins.contains(host)) t else t.copy(origins = t.origins + host) }
+            }
+            say("Signing in at $host")
         }
 
         override fun onRedirectedTo(host: String) {

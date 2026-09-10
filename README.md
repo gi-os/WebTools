@@ -24,7 +24,8 @@ DuckDuckGo, Ecosia or Kagi. No feed, no suggestions, no history you did not ask 
   bottom of the screen and an *Allow* row on the tool's page.
 - **The pull-down menu.** From the top of any page, pull down. A menu unrolls from the top edge,
   the way a Sailfish pulley does, one row at a time, each lit as it comes; let go on a lit row.
-  The first rows are BACK and FORWARD, when the page has them. SAVE A COPY keeps the page as a PDF. MAKE A TICKET sends a picture of the page to Movie
+  The first rows are BACK, FORWARD and REFRESH. CONVERT hides two rows behind one: let go on it
+  and the next pull offers MAKE A TICKET and SEND TO LIBRARY. SAVE A COPY keeps the page as a PDF. MAKE A TICKET sends a picture of the page to Movie
   Tickets (BrightPasses) and keeps the page ready for an hour. READER VIEW shows the text only. SET AS HOME makes the
   current page the tool's start page. TOOLS is last, so the longest pull always goes back to the
   list.
@@ -129,6 +130,16 @@ Versioning is `v1.x.x`. CI stamps the patch number from the build.
   `Application.onCreate`, and a runtime inside one killed the page on load.
 - `CrashLog`: an uncaught exception files itself on the next launch.
 - Native libraries compressed in the APK: 108 MB, not 202.
+
+### v3.0.x
+
+- The pull-down starts only in the top 28dp of the screen, the way a notification shade is
+  grabbed. Being at the top of a page no longer makes the whole page a handle.
+- REFRESH is a row; MAKE A TICKET and SEND TO LIBRARY moved behind CONVERT; the 2FA row is gone.
+- SAVE A COPY only shows for a tool on the shelf, since a copy is kept beside its row.
+- A sign-in hop to an identity host is followed and learned (`OriginRule.looksLikeSignIn`), and a
+  popup loads in the one session instead of leaving a white page. AXS's sign-in needed both.
+- No numerals in the pull-down: the lit row says LET GO, the rest say nothing.
 
 ### v3.0.0
 

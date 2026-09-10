@@ -36,5 +36,29 @@ object OriginRule {
         }
     }
 
+    /**
+     * Whether a blocked address is a sign-in hop rather than a wander.
+     *
+     * A site's own wall is a list of the hosts it normally uses, and signing in is exactly the
+     * moment a site stops using them: AXS, Ticketmaster and half the web hand the browser to an
+     * identity host for one round trip. Dead-ending there is indistinguishable from the app being
+     * broken — the page goes white and nothing says why. So a hop that names itself (auth, login,
+     * sso, oauth, openid, identity, session, account, a `redirect_uri`) is followed, and its host
+     * is learned for this tool, which is the same rule already used for a first-load redirect.
+     *
+     * It is a real widening of the wall, and a deliberate one: the alternative is a browser that
+     * cannot sign in to anything, which is not a browser.
+     */
+    fun looksLikeSignIn(url: String): Boolean {
+        val u = url.lowercase()
+        if (!u.startsWith("http")) return false
+        val host = u.substringAfter("://").substringBefore('/')
+        val rest = u.substringAfter("://").substringAfter('/', "")
+        val words = listOf("auth", "login", "signin", "sign-in", "sso", "oauth", "openid", "identity", "session", "account", "connect", "callback")
+        if (words.any { host.contains(it) }) return true
+        if (words.any { rest.substringBefore('?').contains(it) }) return true
+        return rest.contains("redirect_uri=") || rest.contains("client_id=") || rest.contains("response_type=")
+    }
+
     enum class Decision { ALLOW, BLOCK, HAND_OFF }
 }

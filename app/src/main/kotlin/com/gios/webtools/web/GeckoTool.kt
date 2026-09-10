@@ -31,6 +31,8 @@ interface ToolPageListener {
     fun onRefused(title: String)
     /** The site itself sent the first load to another host (tutanota.com -> tuta.com). */
     fun onRedirectedTo(host: String)
+    /** A sign-in sent the page to an identity host, which is now allowed for this tool. */
+    fun onSignInHop(host: String)
     /** A response the engine will not show (a PDF link, an attachment): save it. */
     fun onDownload(response: WebResponse)
 }
@@ -86,7 +88,14 @@ class GeckoTool(
                     OriginRule.Decision.BLOCK -> {
                         val host = uri.host
                         val isHttp = uri.scheme == "http" || uri.scheme == "https"
-                        if (isHttp && host != null && request.isRedirect && !settled) {
+                        if (isHttp && host != null && OriginRule.looksLikeSignIn(request.uri)) {
+                            // A sign-in hop. Follow it and remember the host for this tool.
+                            val h = host.lowercase().removePrefix("www.")
+                            allowed.add(h)
+                            log.nav("sign-in  ${request.uri}")
+                            listener.onSignInHop(h)
+                            GeckoResult.fromValue(AllowOrDeny.ALLOW)
+                        } else if (isHttp && host != null && request.isRedirect && !settled) {
                             // The site moved. A server redirect during the first load is the site's
                             // own doing, not a wander. Follow, remember.
                             val h = host.lowercase().removePrefix("www.")
@@ -116,9 +125,27 @@ class GeckoTool(
                 canGoForward = value
             }
 
-            /** No popups. A page that wants a new window gets nothing. */
+            /**
+             * No second window, but the page it wanted is not lost.
+             *
+             * Returning null denies the popup, which used to be the whole of it — and a sign-in
+             * button that opens a window then leaves a white screen behind is the commonest way
+             * for that to go wrong (AXS does this). The address is loaded here instead, in the
+             * one session there is, if the wall or the sign-in rule allows it.
+             */
             override fun onNewSession(s: GeckoSession, uri: String): GeckoResult<GeckoSession>? {
-                log.navBlocked("popup $uri")
+                val u = Uri.parse(uri)
+                val host = u.host
+                val ok = OriginRule.decide(allowed, u.scheme, host, false) == OriginRule.Decision.ALLOW ||
+                    OriginRule.looksLikeSignIn(uri)
+                if (ok) {
+                    if (host != null) allowed.add(host.lowercase().removePrefix("www."))
+                    log.nav("popup→here $uri")
+                    session.loadUri(uri)
+                } else {
+                    log.navBlocked("popup $uri")
+                    listener.onBlocked(host ?: "a new window")
+                }
                 return null
             }
 
@@ -219,6 +246,7 @@ class GeckoTool(
     }
 
     fun goBack() = session.goBack()
+    fun reload() = session.reload()
     fun goForward() = session.goForward()
 
     fun scrollBy(dyPx: Int) {

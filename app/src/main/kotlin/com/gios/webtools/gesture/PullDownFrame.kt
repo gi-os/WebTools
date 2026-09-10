@@ -25,9 +25,6 @@ import android.widget.FrameLayout
  */
 class PullDownFrame(context: Context) : FrameLayout(context) {
 
-    /** Whether the content is at its top right now. Set by whichever screen is showing. */
-    var atTop: () -> Boolean = { true }
-
     /** How many items the menu has right now; 0 disables the pull. */
     var itemCount: () -> Int = { 1 }
 
@@ -69,8 +66,16 @@ class PullDownFrame(context: Context) : FrameLayout(context) {
     private var eligible = false
     private var lastPicked = -1
 
-    /** Fraction of the height inside which a stroke may pull even when the content is scrolled. */
-    private val topBand = 0.14f
+    /**
+     * How far down the screen a pull may begin: a strip along the very top, the way a
+     * notification shade is grabbed.
+     *
+     * It used to be this strip *or* "the content is at its top", and the second half was the
+     * problem. A page scrolled to the top is the normal state of a page you have just opened, so
+     * every downward stroke anywhere on it opened the menu instead of scrolling — the whole
+     * screen was a handle. One strip, always, is a rule the thumb learns once.
+     */
+    private val topBandPx: Float = 28f * density
 
     override fun requestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {
         // The child does not get to veto a pull that is still possible.
@@ -83,7 +88,7 @@ class PullDownFrame(context: Context) : FrameLayout(context) {
             MotionEvent.ACTION_DOWN -> {
                 claimed = false
                 lastPicked = -1
-                eligible = itemCount() > 0 && (ev.y < height * topBand || atTop())
+                eligible = itemCount() > 0 && ev.y < topBandPx
                 if (eligible) gesture.down(ev.x, ev.y) else gesture.reset()
                 report()
                 return false

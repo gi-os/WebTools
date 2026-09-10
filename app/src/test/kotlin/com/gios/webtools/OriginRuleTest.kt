@@ -55,3 +55,30 @@ class OriginRuleTest {
         assertEquals(Decision.BLOCK, OriginRule.decide(tm, "mailto", null, false))
     }
 }
+
+class SignInHopTest {
+    @kotlin.test.Test
+    fun anIdentityHopIsFollowed() {
+        val yes = listOf(
+            "https://auth.axs.com/login",
+            "https://id.ticketmaster.com/",
+            "https://x.example/oauth2/authorize?client_id=1",
+            "https://x.example/session/new",
+            "https://accounts.example.org/",
+            "https://x.example/go?redirect_uri=https%3A%2F%2Fa.b",
+        )
+        yes.forEach { kotlin.test.assertTrue(com.gios.webtools.web.OriginRule.looksLikeSignIn(it), it) }
+    }
+
+    @kotlin.test.Test
+    fun aWanderIsNot() {
+        val no = listOf(
+            "https://ads.example.com/track",
+            "https://www.instagram.com/artist",
+            "https://x.example/events/12345",
+            "tel:+15551234",
+            "",
+        )
+        no.forEach { kotlin.test.assertFalse(com.gios.webtools.web.OriginRule.looksLikeSignIn(it), it) }
+    }
+}

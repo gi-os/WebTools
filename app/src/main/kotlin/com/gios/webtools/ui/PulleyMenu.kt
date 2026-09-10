@@ -36,8 +36,8 @@ import com.gios.webtools.ui.theme.RuleGrey
  * app can draw, and it appeared and vanished under the thumb at every row — the menu flashed
  * rather than moved. Now every row keeps the page's black, the labels sit dim, and the row the
  * thumb has reached turns white and grows a short bar at the left edge. The eye follows the bar
- * down the list. Each row also carries its own number, replaced by LET GO on the lit one, which
- * is the only instruction the gesture ever needed.
+ * down the list. The lit row says LET GO, which is the only instruction the gesture ever needed;
+ * the others say nothing, because a row you cannot tap by number does not need one.
  */
 @Composable
 fun PulleyMenu(items: List<String>, travelPx: Float, picked: Int, pitchDp: Float, deadzoneDp: Float) {
@@ -78,11 +78,9 @@ fun PulleyMenu(items: List<String>, travelPx: Float, picked: Int, pitchDp: Float
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f),
                         )
-                        Spacer(Modifier.width(12.dp))
                         if (lit) {
+                            Spacer(Modifier.width(12.dp))
                             Text("LET GO", style = Mono.label, color = Dim)
-                        } else {
-                            Text((i + 1).toString(), style = Mono.numeral, color = Faint)
                         }
                     }
                 }
