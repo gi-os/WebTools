@@ -53,7 +53,7 @@ import com.gios.light.common.report.ReportContext
 import com.gios.light.common.report.Device
 import com.gios.light.common.report.ReportOverlay
 import com.gios.light.common.report.Screenshot
-import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import com.gios.webtools.ui.Starter
 import com.gios.webtools.ui.ToolScreen
 import com.gios.webtools.ui.TutorialScreen
