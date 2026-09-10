@@ -19,7 +19,7 @@ DuckDuckGo, Ecosia or Kagi. No feed, no suggestions, no history you did not ask 
   bottom of the screen and an *Allow* row on the tool's page.
 - **The pull-down menu.** From the top of any page, pull down. A menu unrolls from the top edge,
   the way a Sailfish pulley does, one row at a time, each lit as it comes; let go on a lit row.
-  The first row is BACK, one page. SAVE A COPY keeps the page as a PDF. MAKE A TICKET sends a picture of the page to Movie
+  The first rows are BACK and FORWARD, when the page has them. SAVE A COPY keeps the page as a PDF. MAKE A TICKET sends a picture of the page to Movie
   Tickets (BrightPasses) and keeps the page ready for an hour. READER VIEW shows the text only. SET AS HOME makes the
   current page the tool's start page. TOOLS is last, so the longest pull always goes back to the
   list.
@@ -110,7 +110,7 @@ Versioning is `v1.x.x`. CI stamps the patch number from the build.
 
 ### v2.3.0
 
-- BACK is the pull-down's first row: the shortest pull goes one page back.
+- BACK, then FORWARD, lead the pull-down when the page has them: the shortest pull goes one page back.
 - SETTINGS on the shelf's bar: search engine, how long a page stays warm (1 to 30 minutes),
   Send feedback, the shake readout, the tutorial, the install id.
 - Shake-to-report is the family's shared one (`light-common` 1.9.1): a chip, then the sheet.

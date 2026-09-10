@@ -48,6 +48,7 @@ class GeckoTool(
     var scrollY: Int = 0
         private set
     var canGoBack: Boolean = false
+    var canGoForward: Boolean = false
         private set
     var currentUrl: String? = null
         private set
@@ -104,6 +105,10 @@ class GeckoTool(
 
             override fun onCanGoBack(s: GeckoSession, value: Boolean) {
                 canGoBack = value
+            }
+
+            override fun onCanGoForward(s: GeckoSession, value: Boolean) {
+                canGoForward = value
             }
 
             /** No popups. A page that wants a new window gets nothing. */
@@ -197,6 +202,7 @@ class GeckoTool(
     }
 
     fun goBack() = session.goBack()
+    fun goForward() = session.goForward()
 
     fun scrollBy(dyPx: Int) {
         session.panZoomController.scrollBy(

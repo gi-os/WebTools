@@ -358,6 +358,7 @@ class MainActivity : ComponentActivity() {
         const val SAVE = "Save a copy"
         const val TICKET = "Make a ticket"
         const val BACK = "Back"
+        const val FORWARD = "Forward"
     }
 
     /** Rows top-to-bottom, unrolling with the pull; TOOLS is last so the longest pull always leaves. */
@@ -366,9 +367,10 @@ class MainActivity : ComponentActivity() {
         return when (screen) {
             Screen.Home -> emptyList()
             is Screen.Page -> if (p == null) listOf(Pull.TOOLS) else buildList {
-                // The shortest pull is one page back (or to the list when there is no back),
-                // the same step the camera button takes.
-                add(Pull.BACK)
+                // The shortest pull is one page back, the next one forward; each row is there
+                // only when the page has somewhere to go. Never home: TOOLS is for that.
+                if (p.canGoBack) add(Pull.BACK)
+                if (p.canGoForward) add(Pull.FORWARD)
                 if (p.tool.kind == ToolKind.SITE) {
                     add(Pull.SAVE)
                     if (ticketsInstalled) add(Pull.TICKET)
@@ -386,7 +388,8 @@ class MainActivity : ComponentActivity() {
         val p = page
         when (item) {
             Pull.TOOLS -> home()
-            Pull.BACK -> back()
+            Pull.BACK -> p?.goBack()
+            Pull.FORWARD -> p?.goForward()
             Pull.TICKET -> makeTicket()
             Pull.SET_HOME -> {
                 val url = p?.currentUrl ?: return

@@ -2,9 +2,9 @@
 
 ## In this release
 
-- **BACK is the first row of the pull-down.** The shortest pull goes one page back, or to the
-  list when there is no page behind; the same step the camera button takes. TOOLS is still the
-  deepest.
+- **BACK, then FORWARD, lead the pull-down.** The shortest pull goes one page back; the next,
+  one forward. Each row is there only when the page has somewhere to go, and neither ever
+  goes home. TOOLS is still the deepest.
 - **SETTINGS.** On the shelf's bar, next to ADD. Rows, each a fact with the tap that changes it:
   the search engine (DuckDuckGo, Ecosia, Kagi), how long a page stays warm after you leave (1, 2,
   5, 15 or 30 minutes; a ticket page keeps its hour), Send feedback, a live shake readout, the
