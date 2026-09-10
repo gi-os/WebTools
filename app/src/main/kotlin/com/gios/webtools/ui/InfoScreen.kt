@@ -1,114 +1,102 @@
 package com.gios.webtools.ui
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import com.gios.webtools.data.Tool
 import com.gios.webtools.data.ToolKind
 import com.gios.webtools.hw.WheelScroll
-import com.gios.webtools.ui.theme.Dim
 import java.text.DateFormat
 import java.util.Date
 
 /**
- * One tool's page: what it is, where it may go, and the three things you can do to it.
- * Remove asks once, on the same bar, so a slip does not cost a tool.
+ * One tool's page: what it is on top as a grid of label and answer, then the things you can do
+ * to it as one-line facts with their state on the right. Remove asks once, on the row itself, so
+ * a slip does not cost a tool.
  */
 @Composable
 fun InfoScreen(
     tool: Tool,
     scroll: ScrollState,
     online: Boolean,
+    index: Int?,
     onOpen: () -> Unit,
     onOpenSaved: () -> Unit,
     blockedHost: String?,
     onAllowBlocked: () -> Unit,
     onToggleKeep: () -> Unit,
     onToggleReader: () -> Unit,
+    onFolder: () -> Unit,
     onForgetLogin: () -> Unit,
     onRemove: () -> Unit,
     onBack: () -> Unit,
 ) {
     WheelScroll(scroll)
     var confirmRemove by remember { mutableStateOf(false) }
+    val stamp = { at: Long -> DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(at)) }
 
     Column(Modifier.fillMaxSize()) {
-        TopBar(tool.name, right = if (tool.kind == ToolKind.BUNDLE) "on the phone" else "site")
-        Rule()
+        TopBar(
+            tool.name,
+            right = (if (tool.kind == ToolKind.BUNDLE) "on the phone" else "site") +
+                (index?.let { " · " + it.toString().padStart(2, '0') } ?: ""),
+        )
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll)) {
-            Spacer(Modifier.height(8.dp))
-            Field("Address", tool.url)
-            if (tool.kind == ToolKind.SITE) {
-                Field("Stays inside", tool.origins.joinToString("\n"))
-                Field(
-                    "Saved copy",
-                    if (tool.hasSnapshot) DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(tool.snapshotAt))
-                    else "none yet",
-                )
-            }
-            if (tool.lastUsed > 0L) {
-                Field("Last opened", DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(tool.lastUsed)))
-            }
-            Spacer(Modifier.height(8.dp))
-            Rule()
-            ListRow(title = if (online) "Open" else "Open (offline)", detail = null, onClick = onOpen)
+            FactGrid(
+                buildList {
+                    add("Address" to tool.url)
+                    if (tool.kind == ToolKind.SITE) {
+                        add("Stays inside" to tool.origins.joinToString("\n").ifEmpty { "anywhere" })
+                        add("Saved copy" to if (tool.hasSnapshot) stamp(tool.snapshotAt) else "none yet")
+                    }
+                    add("Folder" to tool.folder.ifEmpty { "the shelf itself" })
+                    if (tool.lastUsed > 0L) add("Last opened" to stamp(tool.lastUsed))
+                },
+            )
+            FactRow(title = if (online) "Open" else "Open (offline)", state = null, onClick = onOpen)
             if (tool.kind == ToolKind.SITE) {
                 if (blockedHost != null && !tool.origins.contains(blockedHost)) {
-                    ListRow(
-                        title = "Allow $blockedHost",
-                        detail = "The wall refused it last time. Allowing adds it to this tool only.",
-                        onClick = onAllowBlocked,
-                    )
+                    FactRow(title = "Allow $blockedHost", state = "blocked once", onClick = onAllowBlocked)
                 }
-                ListRow(
-                    title = if (tool.reader) "Reader view: on" else "Reader view: off",
-                    detail = "Text only, no layout. Good for articles, wrong for tickets and forms.",
-                    onClick = onToggleReader,
-                )
                 if (tool.hasSnapshot) {
-                    ListRow(title = "Open the saved copy", detail = "Works with no signal", onClick = onOpenSaved)
+                    FactRow(title = "Open the saved copy", state = "no signal ok", onClick = onOpenSaved)
                 }
-                ListRow(
-                    title = if (tool.keep) "Keeping a copy: on" else "Keeping a copy: off",
-                    detail = "Saves the page as a PDF after each visit, so it opens with no signal",
+                FactRow(
+                    title = "Keeping a copy",
+                    state = if (tool.keep) "on" else "off",
+                    lit = tool.keep,
                     onClick = onToggleKeep,
                 )
-                ListRow(
-                    title = "Sign out of this site",
-                    detail = "Clears its cookies. A login brought over by code goes with them.",
-                    onClick = onForgetLogin,
+                FactRow(
+                    title = "Reader view",
+                    state = if (tool.reader) "on" else "off",
+                    lit = tool.reader,
+                    onClick = onToggleReader,
                 )
             }
-            ListRow(
+            FactRow(
+                title = "Put in a folder",
+                state = tool.folder.ifEmpty { "none" },
+                lit = tool.folder.isNotEmpty(),
+                onClick = onFolder,
+            )
+            if (tool.kind == ToolKind.SITE) {
+                FactRow(title = "Sign out of this site", state = "clears cookies", onClick = onForgetLogin)
+            }
+            FactRow(
                 title = if (confirmRemove) "Tap again to remove" else "Remove",
-                detail = if (confirmRemove) "This also deletes its saved copy" else null,
+                state = if (confirmRemove) "and its copy" else null,
                 onClick = { if (confirmRemove) onRemove() else confirmRemove = true },
             )
         }
         ActionBar(listOf(BarAction("BACK", onBack), BarAction("OPEN", onOpen)))
-    }
-}
-
-@Composable
-private fun Field(label: String, value: String) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp)) {
-        Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = Dim)
-        Spacer(Modifier.height(4.dp))
-        Text(value, style = MaterialTheme.typography.bodyMedium, color = Color.White)
     }
 }

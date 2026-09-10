@@ -38,6 +38,9 @@ import com.gios.webtools.data.Tool
 import com.gios.webtools.data.ToolKind
 import com.gios.webtools.data.ToolStore
 import com.gios.webtools.data.Prefs
+import com.gios.webtools.data.Shelf
+import com.gios.webtools.ui.FolderScreen
+import com.gios.webtools.ui.FolderPickScreen
 import com.gios.webtools.data.Download
 import com.gios.webtools.data.DownloadStore
 import com.gios.webtools.web.Downloader
@@ -87,6 +90,8 @@ private sealed class Screen {
     data object Home : Screen()
     data object Settings : Screen()
     data object Downloads : Screen()
+    data class Folder(val name: String) : Screen()
+    data class PickFolder(val id: String) : Screen()
     data class Add(val message: String? = null) : Screen()
     data class Info(val id: String) : Screen()
     data class Page(val id: String, val saved: Boolean) : Screen()
@@ -122,6 +127,10 @@ class MainActivity : ComponentActivity() {
     private var isBrowser by mutableStateOf(false)
     private lateinit var downloader: Downloader
     private var downloadsList = LazyListState()
+    private var folderList = LazyListState()
+    /** How far the open page has come, 0..1. The line along the top edge. */
+    private var pageProgress by mutableStateOf(0f)
+    private var pageLoading by mutableStateOf(false)
     private var engine by mutableStateOf(SearchEngine.DUCKDUCKGO)
     private var graceMs by mutableStateOf(Warmth.GRACE_MS)
 
@@ -252,15 +261,38 @@ class MainActivity : ComponentActivity() {
                                 go(Screen.Home)
                             }
                             Screen.Home -> ListScreen(
-                                tools = tools.sortedWith(compareByDescending<Tool> { it.lastUsed }.thenBy { it.added }),
+                                tools = tools,
                                 listState = listState,
                                 onSearch = { typed -> lookUp(typed) },
                                 onOpen = { show(it) },
                                 onInfo = { go(Screen.Info(it.id)) },
+                                onFolder = { go(Screen.Folder(it)) },
                                 onAdd = { go(Screen.Add()) },
                                 onDownloads = { go(Screen.Downloads) },
                                 onSettings = { go(Screen.Settings) },
                             )
+                            is Screen.Folder -> FolderScreen(
+                                folder = s.name,
+                                tools = Shelf.inFolder(tools, s.name),
+                                listState = folderList,
+                                onOpen = { show(it) },
+                                onInfo = { go(Screen.Info(it.id)) },
+                                onBack = { go(Screen.Home) },
+                            )
+                            is Screen.PickFolder -> {
+                                val t = store.get(s.id)
+                                if (t == null) LaunchedEffect(Unit) { go(Screen.Home) } else FolderPickScreen(
+                                    tool = t,
+                                    folders = Shelf.folders(tools),
+                                    listState = folderList,
+                                    onPick = { f ->
+                                        store.update(t.id) { it.copy(folder = f) }
+                                        say(if (f.isEmpty()) "Back on the shelf" else "Filed under $f")
+                                        go(Screen.Info(t.id))
+                                    },
+                                    onBack = { go(Screen.Info(t.id)) },
+                                )
+                            }
                             Screen.Downloads -> {
                                 val items by downloads.items.collectAsStateWithLifecycle()
                                 DownloadsScreen(
@@ -308,6 +340,8 @@ class MainActivity : ComponentActivity() {
                                         tool = tool,
                                         scroll = pageScroll,
                                         online = online(),
+                                        index = Shelf.entries(tools).indexOfFirst { e -> e is Shelf.Entry.Single && e.tool.id == tool.id }
+                                            .takeIf { it >= 0 }?.plus(1),
                                         onOpen = { show(tool) },
                                         onOpenSaved = { show(tool, forceSaved = true) },
                                         blockedHost = lastBlocked[tool.id],
@@ -319,6 +353,7 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onToggleKeep = { store.update(tool.id) { t -> t.copy(keep = !t.keep) } },
                                         onToggleReader = { store.update(tool.id) { t -> t.copy(reader = !t.reader) } },
+                                        onFolder = { go(Screen.PickFolder(tool.id)) },
                                         onForgetLogin = { forgetLogin(tool) },
                                         onRemove = { store.remove(tool.id); go(Screen.Home) },
                                         onBack = { go(Screen.Home) },
@@ -327,7 +362,7 @@ class MainActivity : ComponentActivity() {
                             }
                             is Screen.Page -> {
                                 val p = page
-                                if (p == null) LaunchedEffect(Unit) { go(Screen.Home) } else ToolScreen(session = p.session, status = status, onView = { toolView = it })
+                                if (p == null) LaunchedEffect(Unit) { go(Screen.Home) } else ToolScreen(session = p.session, status = status, loading = pageLoading, progress = pageProgress, onView = { toolView = it })
                             }
                         }
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
@@ -361,6 +396,8 @@ class MainActivity : ComponentActivity() {
             is Screen.Add -> "add"
             Screen.Settings -> "settings"
             Screen.Downloads -> "downloads"
+            is Screen.Folder -> "folder"
+            is Screen.PickFolder -> "folder"
             Screen.Tutorial -> "tutorial"
             else -> "shelf"
         }
@@ -813,6 +850,10 @@ class MainActivity : ComponentActivity() {
             say("Following the site to $host")
         }
 
+        override fun onProgressAt(fraction: Float) {
+            pageProgress = fraction
+        }
+
         override fun onDownload(response: WebResponse) {
             downloader.start(response, downloadListener)
         }
@@ -822,8 +863,11 @@ class MainActivity : ComponentActivity() {
         }
 
         override fun onProgress(loading: Boolean) {
-            if (loading && status == null) status = "Loading"
-            if (!loading && status == "Loading") status = null
+            // The line along the top edge says it now, so the bottom strip stays for the things
+            // that need words. It is still set for the saved-copy and no-signal cases below.
+            pageLoading = loading
+            if (!loading) pageProgress = 1f
+            if (status == "Loading") status = null
         }
 
         override fun onLoaded(url: String) {
@@ -946,7 +990,7 @@ class MainActivity : ComponentActivity() {
         val id = Tool.slug(s.name)
         val tool = Tool(
             id = id, name = s.name, kind = ToolKind.SITE, url = s.url, origins = s.origins,
-            keep = s.keep, reader = s.reader, added = System.currentTimeMillis(),
+            keep = s.keep, reader = s.reader, added = System.currentTimeMillis(), folder = s.folder,
         )
         store.put(tool)
         go(Screen.Info(id))

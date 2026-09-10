@@ -8,10 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -25,7 +23,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.gios.webtools.hw.WheelSteps
 import com.gios.webtools.ui.theme.Dim
-import com.gios.webtools.ui.theme.Faint
+import com.gios.webtools.ui.theme.Metrics
+import com.gios.webtools.ui.theme.RuleGrey
 
 private data class Page(val title: String, val body: String)
 
@@ -101,23 +100,24 @@ fun TutorialScreen(scroll: ScrollState, onDone: () -> Unit) {
     val last = index == PAGES.lastIndex
 
     Column(Modifier.fillMaxSize()) {
-        TopBar("How it works", right = "${index + 1} of ${PAGES.size}")
-        Rule()
-        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll).padding(horizontal = 24.dp, vertical = 28.dp)) {
+        TopBar("How it works", right = "${(index + 1).toString().padStart(2, '0')} of ${PAGES.size}")
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll).padding(horizontal = Metrics.pad, vertical = 26.dp)) {
             Text(page.title, style = MaterialTheme.typography.titleLarge, color = Color.White)
-            Spacer(Modifier.height(20.dp))
-            Text(page.body, style = MaterialTheme.typography.bodyMedium, color = Dim)
+            Spacer(Modifier.height(18.dp))
+            Text(page.body, style = MaterialTheme.typography.bodySmall, color = Dim)
         }
+        // Where you are, as a row of rules rather than dots: the page you are on is white and
+        // long, the rest are short and faint. A dot says "one of seven" and nothing else.
         Row(
-            Modifier.fillMaxWidth().padding(bottom = 18.dp),
-            horizontalArrangement = Arrangement.Center,
+            Modifier.fillMaxWidth().padding(horizontal = Metrics.pad, vertical = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             PAGES.indices.forEach { i ->
                 Spacer(
                     Modifier
-                        .padding(horizontal = 5.dp)
-                        .size(6.dp)
-                        .background(if (i == index) Color.White else Faint, CircleShape),
+                        .weight(if (i == index) 2f else 1f)
+                        .height(2.dp)
+                        .background(if (i == index) Color.White else RuleGrey),
                 )
             }
         }

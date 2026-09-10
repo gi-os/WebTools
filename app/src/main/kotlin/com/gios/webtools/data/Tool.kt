@@ -33,6 +33,10 @@ enum class ToolKind {
  * @property reader   open in Reader View (text only) rather than the full page
  * @property keep     save an offline copy after every successful live load
  * @property snapshotAt  epoch ms of the last saved copy, 0 when there is none
+ * @property folder   the folder this tool sits in, "" for the shelf itself. A folder is only a
+ *                    name written on its tools: there is no folder to create, rename or delete
+ *                    apart from the tools in it, so a folder cannot be left behind empty and a
+ *                    tool can never be lost inside one
  */
 data class Tool(
     val id: String,
@@ -47,6 +51,7 @@ data class Tool(
     val lastUsed: Long = 0L,
     val added: Long = 0L,
     val builtIn: Boolean = false,
+    val folder: String = "",
 ) {
     /** The address a bundle is served from. */
     val bundleHost: String get() = "$id.$BUNDLE_DOMAIN"
@@ -72,6 +77,7 @@ data class Tool(
         .put("lastUsed", lastUsed)
         .put("added", added)
         .put("builtIn", builtIn)
+        .put("folder", folder)
 
     companion object {
         const val BUNDLE_DOMAIN = "webtools.internal"
@@ -95,6 +101,7 @@ data class Tool(
                 lastUsed = o.optLong("lastUsed", 0L),
                 added = o.optLong("added", 0L),
                 builtIn = o.optBoolean("builtIn", false),
+                folder = o.optString("folder", ""),
             )
         }
 
@@ -108,6 +115,10 @@ data class Tool(
                 .lowercase()
             return host.removePrefix("www.")
         }
+
+        /** A folder name as it is stored: trimmed, one space between words, never longer than 24. */
+        fun folderName(raw: String): String =
+            raw.trim().split(Regex("\\s+")).joinToString(" ").take(24)
 
         /** A stable id from a name: lowercase, letters and digits, dashes between words. */
         fun slug(name: String): String {

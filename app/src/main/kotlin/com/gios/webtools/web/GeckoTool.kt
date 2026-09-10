@@ -23,6 +23,8 @@ import java.io.InputStream
 interface ToolPageListener {
     fun onBlocked(host: String)
     fun onProgress(loading: Boolean)
+    /** How far the page has come, 0..1. Drawn as a line along the top edge. */
+    fun onProgressAt(fraction: Float)
     fun onLoaded(url: String)
     fun onFailed(description: String)
     /** The page is a bot gate that has refused this client. */
@@ -137,6 +139,11 @@ class GeckoTool(
         session.progressDelegate = object : GeckoSession.ProgressDelegate {
             override fun onPageStart(s: GeckoSession, url: String) {
                 listener.onProgress(true)
+                listener.onProgressAt(0f)
+            }
+
+            override fun onProgressChange(s: GeckoSession, progress: Int) {
+                listener.onProgressAt(progress / 100f)
             }
 
             override fun onPageStop(s: GeckoSession, success: Boolean) {
