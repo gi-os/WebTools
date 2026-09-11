@@ -1,24 +1,21 @@
-# WebTools 3.2 — a login that is not a white page, and a pull you can catch
+# WebTools 3.4 — the extensions, and reports that arrive
 
 ## In this release
 
-- **Strict tracking protection was blanking sign-ins.** AXS hands you to `login.axs.com` and back
-  to `www.axs.com/login-redirect`. Strict mode partitions the cookies that round trip needs. The
-  page arrived, said "Login to AXS" in its title, and rendered nothing. Blocking is on
-  standard now. uBlock Origin still blocks the ads.
-- **Block ads and trackers, per tool.** A row on the tool's page. Blocking is the commonest reason
-  a page comes up blank, and this is the difference between a site that does not work and one
-  that works once you know.
-- **The pull-down was too small to catch.** The strip along the top was 28dp, and a thumb aiming
-  at 28dp misses. It is 56dp now.
-- **A way back out of CONVERT.** Its first row is BACK TO THE MENU.
-- **The camera button is gone from the app.** It never worked here. The two stages arrive in no
-  reliable order and the system claims the press first, so the app stops swallowing it. BACK in
-  the pull-down goes back a page.
-- **Set as default browser and Passkeys open BrightControl** when the phone has no screen for
-  them, which on LightOS is always. Only the shell can set either, and BrightControl
-  has one: GRANT ALL does it.
-- A report now says whether uBlock and the bridge installed, and what blocking was on.
+- **A report too long for the tracker was thrown away.** GitHub refuses an issue body over 65,536
+  characters, and the queue read that refusal as "this can never be sent" and deleted the file.
+  A page log full of 700-character sign-in URLs plus a screenshot clears that on a bad day, so
+  reports left the phone and appeared nowhere. Addresses in the log are now cut at the query
+  (`login.axs.com/Account/Login?[612 chars]`), the log is capped, and light-common 1.10 trims a
+  body that is still too long instead of losing it.
+- **uBlock Origin was not installed at all**, on any 3.x build, and nothing said so. The bundled
+  copy still carried the signed xpi's `META-INF`, which cannot verify once unpacked. It is gone.
+  A report now names the extension that failed and what the engine said about it.
+- **The bridge connected only if the app happened to be ready first.** Its background page opens
+  the native port the moment the engine starts, which on every launch after the first is before
+  the app has a delegate for it — the port was then lost for the life of the app, and every
+  feature that needs it (a carried-over login, the article for the Library, a 2FA code, the
+  request trail) silently did nothing. It retries now, and reconnects if the app goes away.
 
 ## Known limits
 

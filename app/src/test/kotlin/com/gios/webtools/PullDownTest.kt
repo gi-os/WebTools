@@ -109,3 +109,22 @@ class PulleyPitchTest {
         kotlin.test.assertEquals(34f * d, com.gios.webtools.gesture.Pulley.pitchFor(20, screen, dead, d))
     }
 }
+
+class PageLogTest {
+    @kotlin.test.Test
+    fun aSignInUrlIsNotSevenHundredCharacters() {
+        val log = com.gios.webtools.report.PageLog()
+        val axs = "https://login.axs.com/Account/Login?ReturnUrl=" + "%2F".repeat(230)
+        log.nav(axs)
+        val out = log.dump()
+        kotlin.test.assertTrue(out.contains("login.axs.com/Account/Login?["), out)
+        kotlin.test.assertTrue(out.length < 260, "kept ${out.length} chars")
+    }
+
+    @kotlin.test.Test
+    fun theWholeLogFitsInAReport() {
+        val log = com.gios.webtools.report.PageLog()
+        repeat(400) { log.title("x".repeat(300)) }
+        kotlin.test.assertTrue(log.dump().length <= 8_000)
+    }
+}

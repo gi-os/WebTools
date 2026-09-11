@@ -8,11 +8,38 @@
 //   type       {text}                             -> the text typed into the page's code field
 // Nothing here runs unless the app asks.
 
-var port = browser.runtime.connectNative("webtools");
+// The port, and the fact that it may not be there yet.
+//
+// The app sets its side of this in `ensureBuiltIn(...).accept { bridge.attach(it) }`, and on
+// every launch after the first the extension is already installed — so this background page can
+// start, and this line can run, before the app has a delegate to receive it. The connection is
+// then quietly lost for the life of the app: reports came back "bridge: not connected" while the
+// extension itself was installed and fine. So the connect retries, and reconnects if the app's
+// side ever goes away.
+var port = null;
+var tries = 0;
+function connect() {
+  try {
+    port = browser.runtime.connectNative("webtools");
+    port.onMessage.addListener(onMessage);
+    port.onDisconnect.addListener(function () { port = null; retry(); });
+    tries = 0;
+  } catch (e) {
+    port = null;
+    retry();
+  }
+}
+function retry() {
+  tries++;
+  // Quickly at first, because the app is usually a moment behind; then slowly, forever, because
+  // an app that comes back an hour later should still find the page waiting.
+  var wait = tries < 10 ? 500 : (tries < 30 ? 5000 : 30000);
+  setTimeout(connect, wait);
+}
 
 function reply(id, extra) {
   var m = Object.assign({ id: id }, extra);
-  try { port.postMessage(m); } catch (e) { /* app is gone */ }
+  try { if (port) port.postMessage(m); } catch (e) { /* app is gone */ }
 }
 
 async function setCookies(domain, cookies) {
@@ -87,7 +114,7 @@ try {
   }, { urls: ["<all_urls>"] });
 } catch (e) { note("webRequest unavailable: " + e); }
 
-port.onMessage.addListener(async function (m) {
+async function onMessage(m) {
   if (!m || typeof m !== "object") return;
   try {
     if (m.type === "setCookies") reply(m.id, Object.assign({ ok: true }, await setCookies(m.domain, m.cookies || [])));
@@ -101,6 +128,6 @@ port.onMessage.addListener(async function (m) {
   } catch (e) {
     reply(m.id, { ok: false, why: String(e && e.message || e) });
   }
-});
+}
 
-port.onDisconnect.addListener(function () { /* the app decides when to reconnect */ });
+connect();

@@ -37,6 +37,10 @@ class WebToolsApp : Application() {
     @Volatile var ublockReady = false
     @Volatile var bridgeReady = false
 
+    /** Why an extension did not install, in its own words. */
+    @Volatile var ublockWhy = ""
+    @Volatile var bridgeWhy = ""
+
     /** uBlock, once installed, so a tool can be opened without it. */
     @Volatile var ublock: org.mozilla.geckoview.WebExtension? = null
 
@@ -77,12 +81,15 @@ class WebToolsApp : Application() {
             buildString {
                 appendLine("engine: GeckoView " + org.mozilla.geckoview.BuildConfig.MOZ_APP_VERSION)
                 appendLine("bridge: " + if (bridge.connected) "connected" else "not connected")
-                appendLine("extensions: ublock " + (if (ublockReady) "installed" else "MISSING") + ", bridge " + (if (bridgeReady) "installed" else "MISSING"))
+                appendLine(
+                    "extensions: ublock " + (if (ublockReady) "installed" else "MISSING " + ublockWhy.take(160)) +
+                        ", bridge " + (if (bridgeReady) "installed" else "MISSING " + bridgeWhy.take(160)),
+                )
                 appendLine("blocking: " + (if (p?.tool?.blocking == false) "off for this tool" else "on") + ", ETP standard")
                 if (lastTrail.isNotBlank()) {
                     appendLine()
                     appendLine("what the page asked for (4xx, POSTs, failures):")
-                    appendLine(lastTrail.take(2_500))
+                    appendLine(lastTrail.take(1_200))
                     appendLine()
                 }
                 if (p != null) {
@@ -121,12 +128,12 @@ class WebToolsApp : Application() {
         wec.ensureBuiltIn("resource://android/assets/ublock/", "uBlock0@raymondhill.net")
             .accept(
                 { ublock = it; ublockReady = it != null; Log.i(TAG, "uBlock Origin ${it?.metaData?.version} ready") },
-                { Log.w(TAG, "uBlock Origin did not install: $it") },
+                { ublockWhy = it?.message ?: it.toString(); Log.w(TAG, "uBlock Origin did not install: $it") },
             )
         wec.ensureBuiltIn("resource://android/assets/bridge/", "bridge@webtools.gios")
             .accept(
                 { ext -> bridgeReady = ext != null; if (ext != null) bridge.attach(ext) else Log.w(TAG, "bridge: null extension") },
-                { Log.w(TAG, "bridge did not install: $it") },
+                { bridgeWhy = it?.message ?: it.toString(); Log.w(TAG, "bridge did not install: $it") },
             )
     }
 
