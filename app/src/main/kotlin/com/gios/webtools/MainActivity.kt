@@ -2,6 +2,7 @@ package com.gios.webtools
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Process
 import androidx.core.content.FileProvider
@@ -249,6 +250,19 @@ class MainActivity : ComponentActivity() {
                 val u = data.getQueryParameter("u") ?: return
                 if (u.startsWith("http")) lookUp(u)
             }
+            // webtools://code?c=<payload>: a QR code read somewhere else, handed over whole.
+            //
+            // Roll is the scanner on this phone — it is the camera, it already has QR mode, and a
+            // code on a computer screen is read from across a desk rather than from inside the app
+            // that will use it. So the payload arrives verbatim and goes down the same road as
+            // ADD's own scanner: same parser, same words when it is malformed, same behaviour for
+            // a login and for one part of a split code. Nothing about it is trusted — `QrPayload`
+            // is the only thing that reads it, and it is the same call a code scanned here makes.
+            "code" -> {
+                val c = data.getQueryParameter("c")?.trim().orEmpty()
+                if (c.isEmpty()) { say("That code was empty"); return }
+                addFromText(c)
+            }
         }
     }
 
@@ -459,6 +473,15 @@ class MainActivity : ComponentActivity() {
         const val ACTION_PICK_CODE = "com.gios.lightauth.PICK_CODE"
         const val BITWARDEN_PACKAGE = "com.x8bit.bitwarden"
         const val CONTROL_PACKAGE = "com.gios.lightcontrol"
+
+        /** BrightControl's door for an app asking to have its own setup run over the shell. */
+        const val CONTROL_RUN_GRANTS = "com.gios.lightcontrol.action.RUN_GRANTS"
+        const val CONTROL_EXTRA_LABEL = "com.gios.lightcontrol.extra.LABEL"
+        const val CONTROL_EXTRA_COMMANDS = "com.gios.lightcontrol.extra.COMMANDS"
+
+        /** The one shell line that makes this the phone's browser. Said in both places it is used. */
+        const val BROWSER_ROLE_LINE =
+            "cmd role add-role-holder android.app.role.BROWSER com.gios.webtools"
     }
 
     private object Pull {
@@ -655,10 +678,36 @@ class MainActivity : ComponentActivity() {
 
     // ---- the browser role, and Wi-Fi sign-in ----
 
+    /**
+     * Whether links land here, asked two ways because on this phone the first one lies.
+     *
+     * `RoleManager` is the truth on a phone that has the role at all. LightOS answers
+     * `isRoleAvailable(ROLE_BROWSER)` = false — it ships no PermissionController role UI — and
+     * that made the row read "not yet" even once `cmd role` had handed the role over and every
+     * link in every app was already opening here. So when the role manager says it does not know,
+     * ask the package manager what actually resolves an ordinary web address instead: if it is
+     * this app, this app is the browser, whatever the role service thinks.
+     */
     private fun checkBrowserRole() {
         val rm = getSystemService(RoleManager::class.java)
-        isBrowser = rm != null && rm.isRoleAvailable(RoleManager.ROLE_BROWSER) && rm.isRoleHeld(RoleManager.ROLE_BROWSER)
+        if (rm != null && rm.isRoleAvailable(RoleManager.ROLE_BROWSER)) {
+            isBrowser = rm.isRoleHeld(RoleManager.ROLE_BROWSER)
+            return
+        }
+        isBrowser = resolvesWebLinks()
     }
+
+    /** The package that answers a plain `https` address, or "" when it is a chooser or nothing. */
+    private fun webHandler(): String {
+        val probe = Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com/"))
+            .addCategory(Intent.CATEGORY_BROWSABLE)
+        val info = runCatching {
+            packageManager.resolveActivity(probe, PackageManager.MATCH_DEFAULT_ONLY)
+        }.getOrNull() ?: return ""
+        return info.activityInfo?.packageName.orEmpty()
+    }
+
+    private fun resolvesWebLinks(): Boolean = webHandler() == packageName
 
     /**
      * Make this the browser, by whichever door the phone leaves open.
@@ -687,12 +736,40 @@ class MainActivity : ComponentActivity() {
         // LightOS has neither the role dialog nor a Default apps screen, so the only thing that
         // can set this is the shell — and BrightControl has one. Open it rather than print a
         // command nobody can run from here.
+        // LightOS has neither the role dialog nor a Default apps screen, so the only thing that
+        // can set this is a shell — and BrightControl has one. It is *asked for this one line*
+        // rather than opened at its front door: BrightControl parses the request, rebuilds the
+        // command pinned to the package that sent it, shows it, and reads the role back
+        // afterwards. "Go and find GRANT ALL" was the old answer and it was a row that reported
+        // homework rather than doing anything.
+        if (askControlForBrowserRole()) return
         val control = packageManager.getLaunchIntentForPackage(CONTROL_PACKAGE)
         if (control != null && runCatching { startActivity(control) }.isSuccess) {
             say("BrightControl › ADB & grants › GRANT ALL")
             return
         }
-        say("Needs the shell: cmd role add-role-holder android.app.role.BROWSER com.gios.webtools")
+        say("Needs the shell: $BROWSER_ROLE_LINE")
+    }
+
+    /**
+     * Hand BrightControl the one line that makes this the browser.
+     *
+     * The command travels as text and BrightControl does not run it as written — it matches the
+     * line, rebuilds it against the package that sent the intent, and refuses anything naming
+     * another app. So this is a request, not an instruction, which is why it can be exported at
+     * all. Sent without `NEW_TASK` on purpose: the consent screen should sit on top of Web Tools
+     * and come back to it, and the referrer the activity manager fills in is how BrightControl
+     * knows who is asking.
+     */
+    private fun askControlForBrowserRole(): Boolean {
+        if (!installed(CONTROL_PACKAGE)) return false
+        val intent = Intent(CONTROL_RUN_GRANTS)
+            .setPackage(CONTROL_PACKAGE)
+            .putExtra(CONTROL_EXTRA_LABEL, getString(R.string.app_name))
+            .putStringArrayListExtra(CONTROL_EXTRA_COMMANDS, arrayListOf(BROWSER_ROLE_LINE))
+        val sent = runCatching { startActivity(intent); true }.getOrDefault(false)
+        if (sent) say("BrightControl can set this — it will ask first")
+        return sent
     }
 
     /**

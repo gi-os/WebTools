@@ -1,24 +1,30 @@
-# WebTools 3.4 — the extensions, and reports that arrive
+# WebTools 3.5 — a code read by the camera, and a browser row that does something
 
 ## In this release
 
-- **A report too long for the tracker was thrown away.** GitHub refuses an issue body over 65,536
-  characters, and the queue read that refusal as "this can never be sent" and deleted the file.
-  A page log full of 700-character sign-in URLs plus a screenshot clears that on a bad day, so
-  reports left the phone and appeared nowhere. Addresses in the log are now cut at the query
-  (`login.axs.com/Account/Login?[612 chars]`), the log is capped, and light-common 1.10 trims a
-  body that is still too long instead of losing it.
-- **uBlock Origin was not installed at all**, on any 3.x build, and nothing said so. The bundled
-  copy still carried the signed xpi's `META-INF`, which cannot verify once unpacked. It is gone.
-  A report now names the extension that failed and what the engine said about it.
-- **The bridge connected only if the app happened to be ready first.** Its background page opens
-  the native port the moment the engine starts, which on every launch after the first is before
-  the app has a delegate for it — the port was then lost for the life of the app, and every
-  feature that needs it (a carried-over login, the article for the Library, a 2FA code, the
-  request trail) silently did nothing. It retries now, and reconnects if the app goes away.
+- **Roll can send a code straight here.** The camera is the scanner on this phone: it is already
+  pointed at things, and a code on a computer screen is read from across a desk rather than from
+  inside the app that will use it. Scan a tool code in Roll's QR mode and the row says ADD TO WEB
+  TOOLS. The payload arrives whole on `webtools://code` and goes down the same road as ADD's own
+  scanner — same parser, same words when it is malformed, same behavior for a login and for one
+  part of a split code. Roll does not read it; this app does, as it always did.
+- **A scanned link opens here by name.** Roll asks for this app rather than for whatever handles
+  `https`, which on a phone with no browser was nothing at all.
+- **Set as default browser now asks BrightControl to do it.** The role dialog does not exist on
+  LightOS and neither does the Default apps screen, so the row's last resort was a sentence telling
+  you to go and find GRANT ALL somewhere else. It now hands BrightControl the one line that sets
+  the role. BrightControl rebuilds that line against the app that sent it, shows it, runs it over
+  its own shell, and reads the role holder back — so the row either makes this the browser or says
+  why not.
+- **The row was also lying.** LightOS answers "this phone has no browser role" to the role manager
+  whatever the truth is, so the row read `not yet` even after `cmd role` had handed the role over
+  and every link on the phone was already opening here. When the role manager says it does not
+  know, the package manager is asked what actually answers a web address instead.
 
 ## Known limits
 
+- BrightControl needs its ADB connection up for the browser row to work. Without it the row still
+  names the command.
 - First launch is slower: the engine starts and the two extensions install, once.
 - A page that wants a popup gets nothing. A page that wants location, camera, or notifications
   gets a no.

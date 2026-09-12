@@ -74,13 +74,17 @@ works.
 
 ## Adding a tool
 
-Three ways, all from ADD:
+Three ways from ADD, and a fourth from the camera:
 
 1. **Scan a code.** Open <https://gi-os.github.io/WebTools/> on a computer. Type a name and an
    address, choose whether to keep a copy, and point the phone at the code. The page draws the
    code in your browser and sends nothing anywhere.
 2. **Type an address.** `mta.info` is enough.
 3. **Take a starter.** Subway status, weather, Ticketmaster, Wikipedia.
+4. **Scan it in Roll.** Roll's QR mode recognizes a tool code and offers ADD TO WEB TOOLS. The
+   payload arrives on `webtools://code?c=…` and is parsed here, by the same call ADD makes —
+   nothing about the code is trusted for having come from another app. A scanned *link* arrives
+   the same way, on `webtools://go?u=…`.
 
 A code from the companion page is JSON:
 
@@ -169,7 +173,12 @@ Versioning is `v1.x.x`. CI stamps the patch number from the build.
 ### v2.5.0
 
 - Browser role: `http`/`https` `BROWSABLE` filter; Settings row asks `RoleManager` for
-  `ROLE_BROWSER`. A link opens in the tool whose wall covers it, else as a searched page.
+  `ROLE_BROWSER`. A link opens in the tool whose wall covers it, else as a searched page. LightOS
+  has no role dialog, so since v3.5 the row asks BrightControl to run the one line instead:
+
+  ```
+  cmd role add-role-holder android.app.role.BROWSER com.gios.webtools
+  ```
 - Wi-Fi sign-in (`web/Portal.kt`): `CAPTIVE_PORTAL` action, `bindProcessToNetwork`, 204 probe
   every 4 s, `reportCaptivePortalDismissed`. Explains a VPN refusal instead of spinning.
 
