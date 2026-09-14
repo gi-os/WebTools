@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Process
 import androidx.core.content.FileProvider
 import java.io.File
 import java.io.FileOutputStream
@@ -615,6 +614,13 @@ class MainActivity : ComponentActivity() {
         val log = PageLog()
         // Blocking is a property of the runtime as much as the session, so it is set before the
         // session exists and put back when the next tool opens.
+        if (!app.engineReady) {
+            // The shelf, settings and the report sheet all still work; a page is the one thing
+            // that cannot. Say so rather than falling over on the way to opening it.
+            screen = Screen.Home
+            say("The browser engine did not start. Close the app and open it again.")
+            return
+        }
         app.blocking(tool.blocking)
         val p = GeckoTool(this, tool, app.runtime, listener, log)
         page = p
@@ -960,7 +966,8 @@ class MainActivity : ComponentActivity() {
     private fun leaveProcess() {
         if (page != null || snapshotJob != null) return
         finishAndRemoveTask()
-        Process.killProcess(Process.myPid())
+        // The engine's own processes go with it — see [WebToolsApp.leaveProcess].
+        app.leaveProcess()
     }
 
     override fun onStop() {
@@ -972,6 +979,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        // Far enough in to say the launch worked. What this clears is the flag that tells the
+        // next launch to throw away the engine's startup cache first; see [WebToolsApp].
+        app.launchSucceeded()
         checkNeighbours()
         checkBrowserRole()
         handler.removeCallbacks(parkJob)

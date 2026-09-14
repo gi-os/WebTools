@@ -1,7 +1,10 @@
 package com.gios.webtools
 
+import android.app.ActivityManager
 import android.app.Application
+import android.os.Process
 import android.util.Log
+import java.io.File
 import com.gios.light.common.report.LightReport
 import com.gios.webtools.web.GeckoTool
 import com.gios.webtools.web.Bridge
@@ -20,8 +23,19 @@ import org.mozilla.geckoview.GeckoRuntimeSettings
  */
 class WebToolsApp : Application() {
 
-    lateinit var runtime: GeckoRuntime
-        private set
+    private var engine: GeckoRuntime? = null
+
+    /**
+     * The engine, once it started. Only ask after [engineReady] says yes — the shelf, the
+     * settings and the reporter all work without it, and a page is the only thing that cannot.
+     */
+    val runtime: GeckoRuntime get() = engine ?: error("the engine did not start")
+
+    /** Whether there is an engine to open a page with. */
+    val engineReady: Boolean get() = engine != null
+
+    /** Why there is not, in the engine's own words. Carried into any report. */
+    @Volatile var engineWhy = ""
 
     val bridge = Bridge()
 
@@ -54,6 +68,7 @@ class WebToolsApp : Application() {
      * always a cookie the browser refused to keep, not a password the site refused to accept.
      */
     fun blocking(on: Boolean) {
+        if (!engineReady) return
         val want = if (on) ContentBlocking.CookieBehavior.ACCEPT_NON_TRACKERS else ContentBlocking.CookieBehavior.ACCEPT_ALL
         runCatching { runtime.settings.contentBlocking.setCookieBehavior(want) }
         val ext = ublock ?: return
@@ -79,7 +94,10 @@ class WebToolsApp : Application() {
         LightReport.details = {
             val p = currentPage
             buildString {
-                appendLine("engine: GeckoView " + org.mozilla.geckoview.BuildConfig.MOZ_APP_VERSION)
+                appendLine(
+                    "engine: GeckoView " + org.mozilla.geckoview.BuildConfig.MOZ_APP_VERSION +
+                        if (engineReady) "" else " — DID NOT START: " + engineWhy.take(300),
+                )
                 appendLine("bridge: " + if (bridge.connected) "connected" else "not connected")
                 appendLine(
                     "extensions: ublock " + (if (ublockReady) "installed" else "MISSING " + ublockWhy.take(160)) +
@@ -122,7 +140,28 @@ class WebToolsApp : Application() {
             .preferredColorScheme(GeckoRuntimeSettings.COLOR_SCHEME_DARK)
             .contentBlocking(blocking)
             .build()
-        runtime = GeckoRuntime.create(this, settings)
+        // A launch that never reached the shelf last time. The engine keeps a startup cache on
+        // disk, and the way this app leaves — it kills its own process a few minutes after the
+        // page is parked, to get Firefox's several hundred megabytes back — is exactly the way to
+        // leave a half-written one behind. Reading it takes the next launch down instantly, and
+        // the launch after that is fine because the first one cleared it on its way out. That is
+        // the "it crashes the first time after a while, then works" report. Wipe it before the
+        // engine can read it, rather than after it has fallen over.
+        if (!lastLaunchFinished()) {
+            Log.w(TAG, "last launch did not finish; clearing the engine's startup cache")
+            clearStartupCaches()
+        }
+        markLaunchStarted()
+
+        engine = try {
+            GeckoRuntime.create(this, settings)
+        } catch (t: Throwable) {
+            // Nothing the shelf needs, so do not take the app down with it: the list, settings and
+            // the report sheet all still work, and the reason travels in the report.
+            engineWhy = t.toString()
+            Log.e(TAG, "the engine did not start", t)
+            return
+        }
 
         val wec = runtime.webExtensionController
         wec.ensureBuiltIn("resource://android/assets/ublock/", "uBlock0@raymondhill.net")
@@ -137,7 +176,68 @@ class WebToolsApp : Application() {
             )
     }
 
+    // ---- launch watchdog ----
+
+    private fun launchPrefs() = getSharedPreferences(LAUNCH_PREFS, MODE_PRIVATE)
+
+    /** True unless a previous launch started and never got as far as the shelf. */
+    private fun lastLaunchFinished(): Boolean = launchPrefs().getBoolean(KEY_LAUNCHED, true)
+
+    /** `commit`, not `apply`: the whole point is the value that survives a launch that dies. */
+    private fun markLaunchStarted() {
+        runCatching { launchPrefs().edit().putBoolean(KEY_LAUNCHED, false).commit() }
+    }
+
+    /** Called once the app is on screen, which is past the window this watches. */
+    fun launchSucceeded() {
+        runCatching { launchPrefs().edit().putBoolean(KEY_LAUNCHED, true).apply() }
+    }
+
+    /**
+     * Delete the engine's startup caches, wherever it put them.
+     *
+     * Named rather than guessed at a path: the profile's location has moved between GeckoView
+     * versions, and a cache that is only regenerated is always safe to lose.
+     */
+    private fun clearStartupCaches() {
+        listOf(filesDir, cacheDir, codeCacheDir).forEach { root ->
+            runCatching {
+                root.walkTopDown().maxDepth(5)
+                    .filter { it.isDirectory && it.name.startsWith("startupCache") }
+                    .toList()
+                    .forEach { dir: File -> dir.deleteRecursively() }
+            }
+        }
+    }
+
+    // ---- leaving ----
+
+    /**
+     * End the process, and the engine's processes with it.
+     *
+     * The pages run in their own processes (`:tab0`, `:gpu`, …). Killing only this one leaves
+     * them for the system to reap on its own schedule, and the next launch races that — so they
+     * go first, and this process last. Ordering is the whole of it; there is no wait, because a
+     * gap here is a window in which a tap on the icon would land in a process that is halfway
+     * out the door.
+     */
+    fun leaveProcess() {
+        val me = Process.myPid()
+        runCatching {
+            val am = getSystemService(ActivityManager::class.java)
+            // Since API 22 this returns only this app's own processes, which is exactly the list
+            // wanted. An isolated content process belongs to another uid and refuses to be
+            // killed; the system takes those once their client is gone.
+            am?.runningAppProcesses.orEmpty()
+                .filter { it.pid > 0 && it.pid != me }
+                .forEach { runCatching { Process.killProcess(it.pid) } }
+        }
+        Process.killProcess(me)
+    }
+
     companion object {
         const val TAG = "WebTools"
+        private const val LAUNCH_PREFS = "launch"
+        private const val KEY_LAUNCHED = "finished"
     }
 }

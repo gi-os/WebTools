@@ -1,31 +1,34 @@
-# WebTools 3.5 — a code read by the camera, and a browser row that does something
+# WebTools 3.6 — the first launch after a while no longer crashes
 
 ## In this release
 
-- **Roll can send a code straight here.** The camera is the scanner on this phone: it is already
-  pointed at things, and a code on a computer screen is read from across a desk rather than from
-  inside the app that will use it. Scan a tool code in Roll's QR mode and the row says ADD TO WEB
-  TOOLS. The payload arrives whole on `webtools://code` and goes down the same road as ADD's own
-  scanner — same parser, same words when it is malformed, same behavior for a login and for one
-  part of a split code. Roll does not read it; this app does, as it always did.
-- **A scanned link opens here by name.** Roll asks for this app rather than for whatever handles
-  `https`, which on a phone with no browser was nothing at all.
-- **Set as default browser now asks BrightControl to do it.** The role dialog does not exist on
-  LightOS and neither does the Default apps screen, so the row's last resort was a sentence telling
-  you to go and find GRANT ALL somewhere else. It now hands BrightControl the one line that sets
-  the role. BrightControl rebuilds that line against the app that sent it, shows it, runs it over
-  its own shell, and reads the role holder back — so the row either makes this the browser or says
-  why not.
-- **The row was also lying.** LightOS answers "this phone has no browser role" to the role manager
-  whatever the truth is, so the row read `not yet` even after `cmd role` had handed the role over
-  and every link on the phone was already opening here. When the role manager says it does not
-  know, the package manager is asked what actually answers a web address instead.
+- **The crash on the first launch after a while is fixed.** Open the app after leaving it alone
+  for an afternoon and it died instantly; open it again and it was fine. Two things caused that,
+  and both are changed.
+
+  The app kills its own process a few minutes after the page is parked, to hand Firefox's several
+  hundred megabytes back to the phone. It killed only the process you can see. The engine runs its
+  pages in processes of their own, and those were left for the system to reap whenever it got
+  round to it — so the next launch was racing that cleanup. They are killed first now, and this
+  process last.
+
+  The other half is on disk. The engine keeps a startup cache, and being killed mid-write is how a
+  half-written one is left behind. Reading it takes the launch down; the launch after that works
+  because the failed one cleared it on the way out. So the app now writes down that a launch has
+  started and clears that mark once it is on screen. A launch that finds the mark still set knows
+  the last one never arrived, and throws the startup cache away before the engine can read it.
+  Whatever was left behind, the launch that follows is clean.
+
+- **An engine that will not start no longer takes the app with it.** If it fails anyway, the
+  shelf, Settings and the report sheet all still open, opening a page says what happened instead
+  of closing the app, and the reason travels in the bug report.
 
 ## Known limits
 
 - BrightControl needs its ADB connection up for the browser row to work. Without it the row still
   names the command.
-- First launch is slower: the engine starts and the two extensions install, once.
+- First launch is slower: the engine starts and the two extensions install, once. A launch that
+  had to throw away the startup cache is slower again, once.
 - A page that wants a popup gets nothing. A page that wants location, camera, or notifications
   gets a no.
 - Bundled tools (Split, Convert) do not keep their last values between launches on this engine.
