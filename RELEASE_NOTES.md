@@ -12,6 +12,9 @@
   round to it — so the next launch was racing that cleanup. They are killed first now, and this
   process last.
 
+  The engine is also told to shut down now, and given a moment to do it, rather than being cut
+  off mid-sentence. That is what stops the mess below from being made in the first place.
+
   The other half is on disk. The engine keeps a startup cache, and being killed mid-write is how a
   half-written one is left behind. Reading it takes the launch down; the launch after that works
   because the failed one cleared it on the way out. So the app now writes down that a launch has

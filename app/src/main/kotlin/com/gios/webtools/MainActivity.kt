@@ -177,6 +177,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // The engine is on its way out and cannot be started again in this process, so there is
+        // nothing here worth drawing. Go now, before anything appears: the next tap gets a clean
+        // process a moment later. The window this closes is under a second, five minutes after
+        // the app was last on screen.
+        if (app.leaving) { app.hardExit(); return }
         store = ToolStore(this)
         store.load()
         downloads = DownloadStore(this)

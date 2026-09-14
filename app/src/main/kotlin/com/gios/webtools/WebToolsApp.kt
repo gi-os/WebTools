@@ -2,6 +2,8 @@ package com.gios.webtools
 
 import android.app.ActivityManager
 import android.app.Application
+import android.os.Handler
+import android.os.Looper
 import android.os.Process
 import android.util.Log
 import java.io.File
@@ -36,6 +38,16 @@ class WebToolsApp : Application() {
 
     /** Why there is not, in the engine's own words. Carried into any report. */
     @Volatile var engineWhy = ""
+
+    /**
+     * True from the moment the engine is told to shut down until the process is gone.
+     *
+     * There is a fraction of a second in there, and a tap on the icon can land in it. Nothing
+     * may start a page from that point — the engine is already leaving and cannot be started
+     * again in this process — so [MainActivity] checks this before it draws anything.
+     */
+    @Volatile var leaving = false
+        private set
 
     val bridge = Bridge()
 
@@ -222,6 +234,23 @@ class WebToolsApp : Application() {
      * out the door.
      */
     fun leaveProcess() {
+        val rt = engine
+        if (rt == null) { hardExit(); return }
+        leaving = true
+        // Nothing may reach for it now. The shutdown is one way.
+        engine = null
+        engineWhy = "the engine was shut down when the app left the screen"
+        val exit = Runnable { hardExit() }
+        val handler = Handler(Looper.getMainLooper())
+        // The engine says when it is done, which is usually a fraction of a second. The delay is
+        // only there for the case where it never answers.
+        runCatching { rt.delegate = GeckoRuntime.Delegate { handler.removeCallbacks(exit); exit.run() } }
+        handler.postDelayed(exit, SHUTDOWN_GRACE_MS)
+        runCatching { rt.shutdown() }.onFailure { handler.removeCallbacks(exit); exit.run() }
+    }
+
+    /** Gone, with the engine's processes first. Called by [leaveProcess], and by nothing else. */
+    fun hardExit() {
         val me = Process.myPid()
         runCatching {
             val am = getSystemService(ActivityManager::class.java)
@@ -239,5 +268,8 @@ class WebToolsApp : Application() {
         const val TAG = "WebTools"
         private const val LAUNCH_PREFS = "launch"
         private const val KEY_LAUNCHED = "finished"
+
+        /** How long to wait for the engine to say it has shut down before going anyway. */
+        private const val SHUTDOWN_GRACE_MS = 2_000L
     }
 }
