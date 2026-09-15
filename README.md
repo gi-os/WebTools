@@ -1,5 +1,7 @@
 # WebTools
 
+[**⬇ Download the latest APK**](https://github.com/gi-os/WebTools/releases/latest) · free, open source.
+
 A browser for the Light Phone III, built for the Light ethos, on Firefox's engine. It can be
 *the* browser: any link another app opens lands here, and a hotel Wi-Fi's sign-in page has
 somewhere to appear.
