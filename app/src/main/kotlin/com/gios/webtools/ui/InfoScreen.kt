@@ -35,6 +35,7 @@ fun InfoScreen(
     onToggleKeep: () -> Unit,
     onToggleReader: () -> Unit,
     onToggleBlocking: () -> Unit,
+    onToggleRoam: () -> Unit,
     onFolder: () -> Unit,
     onForgetLogin: () -> Unit,
     onRemove: () -> Unit,
@@ -55,7 +56,7 @@ fun InfoScreen(
                 buildList {
                     add("Address" to tool.url)
                     if (tool.kind == ToolKind.SITE) {
-                        add("Stays inside" to tool.origins.joinToString("\n").ifEmpty { "anywhere" })
+                        add("Stays inside" to if (tool.roam) "anywhere · roaming" else tool.origins.joinToString("\n").ifEmpty { "anywhere" })
                         add("Saved copy" to if (tool.hasSnapshot) stamp(tool.snapshotAt) else "none yet")
                     }
                     add("Folder" to tool.folder.ifEmpty { "the shelf itself" })
@@ -81,6 +82,12 @@ fun InfoScreen(
                     state = if (tool.blocking) "on" else "off",
                     lit = tool.blocking,
                     onClick = onToggleBlocking,
+                )
+                FactRow(
+                    title = "Roam past the wall",
+                    state = if (tool.roam) "anywhere" else "stays inside",
+                    lit = tool.roam,
+                    onClick = onToggleRoam,
                 )
                 FactRow(
                     title = "Reader view",

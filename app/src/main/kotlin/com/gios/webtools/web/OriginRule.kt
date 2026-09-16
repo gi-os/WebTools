@@ -10,8 +10,9 @@ object OriginRule {
      * True when [host] equals an allowed origin or is a subdomain of one. An empty list means
      * no wall at all (a GO page): any host goes.
      */
-    fun allows(origins: List<String>, host: String?): Boolean {
+    fun allows(origins: List<String>, host: String?, roam: Boolean = false): Boolean {
         if (host.isNullOrEmpty()) return false
+        if (roam) return true
         if (origins.isEmpty()) return true
         val h = host.lowercase().removeSuffix(".")
         return origins.any { o ->
@@ -25,9 +26,9 @@ object OriginRule {
      * https origin is on its list like any other host. `file:` is allowed so a saved copy can be
      * opened, and only from the app's own directory, which the caller establishes.
      */
-    fun decide(origins: List<String>, scheme: String?, host: String?, isOwnFile: Boolean): Decision {
+    fun decide(origins: List<String>, scheme: String?, host: String?, isOwnFile: Boolean, roam: Boolean = false): Decision {
         return when (scheme?.lowercase()) {
-            "http", "https" -> if (allows(origins, host)) Decision.ALLOW else Decision.BLOCK
+            "http", "https" -> if (allows(origins, host, roam)) Decision.ALLOW else Decision.BLOCK
             "file" -> if (isOwnFile) Decision.ALLOW else Decision.BLOCK
             "tel" -> Decision.HAND_OFF
             // The engine's own: reader view, bundled pages, the bridge extension, PDF viewer.

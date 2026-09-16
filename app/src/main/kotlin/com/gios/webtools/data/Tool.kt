@@ -59,6 +59,13 @@ data class Tool(
      * works once you know.
      */
     val blocking: Boolean = true,
+    /**
+     * Whether this tool may leave its wall. Off by default: a tool stays inside [origins]. On, the
+     * allowlist is ignored and any http/https host loads, which is what lets a saved page reach a
+     * login flow (or anything else) the wall would otherwise dead-end. Per tool, so turning one
+     * loose never widens the rest.
+     */
+    val roam: Boolean = false,
 ) {
     /** The address a bundle is served from. */
     val bundleHost: String get() = "$id.$BUNDLE_DOMAIN"
@@ -86,6 +93,7 @@ data class Tool(
         .put("builtIn", builtIn)
         .put("folder", folder)
         .put("blocking", blocking)
+        .put("roam", roam)
 
     companion object {
         const val BUNDLE_DOMAIN = "webtools.internal"
@@ -111,6 +119,7 @@ data class Tool(
                 builtIn = o.optBoolean("builtIn", false),
                 folder = o.optString("folder", ""),
                 blocking = o.optBoolean("blocking", true),
+                roam = o.optBoolean("roam", false),
             )
         }
 

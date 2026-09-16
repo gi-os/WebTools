@@ -378,6 +378,10 @@ class MainActivity : ComponentActivity() {
                                             store.update(tool.id) { t -> t.copy(blocking = !t.blocking) }
                                             say(if (tool.blocking) "Blocking off. Open it again." else "Blocking on. Open it again.")
                                         },
+                                        onToggleRoam = {
+                                            store.update(tool.id) { t -> t.copy(roam = !t.roam) }
+                                            say(if (tool.roam) "Wall back on. Open it again." else "Roaming on. Open it again.")
+                                        },
                                         onFolder = { go(Screen.PickFolder(tool.id)) },
                                         onForgetLogin = { forgetLogin(tool) },
                                         onRemove = { store.remove(tool.id); go(Screen.Home) },

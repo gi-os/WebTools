@@ -78,7 +78,7 @@ class GeckoTool(
         session.navigationDelegate = object : GeckoSession.NavigationDelegate {
             override fun onLoadRequest(s: GeckoSession, request: GeckoSession.NavigationDelegate.LoadRequest): GeckoResult<AllowOrDeny>? {
                 val uri = Uri.parse(request.uri)
-                val decision = OriginRule.decide(allowed, uri.scheme, uri.host, isOwnFile(uri))
+                val decision = OriginRule.decide(allowed, uri.scheme, uri.host, isOwnFile(uri), tool.roam)
                 return when (decision) {
                     OriginRule.Decision.ALLOW -> GeckoResult.fromValue(AllowOrDeny.ALLOW)
                     OriginRule.Decision.HAND_OFF -> {
@@ -136,7 +136,7 @@ class GeckoTool(
             override fun onNewSession(s: GeckoSession, uri: String): GeckoResult<GeckoSession>? {
                 val u = Uri.parse(uri)
                 val host = u.host
-                val ok = OriginRule.decide(allowed, u.scheme, host, false) == OriginRule.Decision.ALLOW ||
+                val ok = OriginRule.decide(allowed, u.scheme, host, false, tool.roam) == OriginRule.Decision.ALLOW ||
                     OriginRule.looksLikeSignIn(uri)
                 if (ok) {
                     if (host != null) allowed.add(host.lowercase().removePrefix("www."))

@@ -54,6 +54,23 @@ class OriginRuleTest {
         assertEquals(Decision.BLOCK, OriginRule.decide(tm, "market", "x", false))
         assertEquals(Decision.BLOCK, OriginRule.decide(tm, "mailto", null, false))
     }
+
+    @Test fun `roaming allows a host off the wall`() {
+        assertFalse(OriginRule.allows(tm, "google.com"))
+        assertTrue(OriginRule.allows(tm, "google.com", roam = true))
+        assertEquals(Decision.ALLOW, OriginRule.decide(tm, "https", "google.com", false, roam = true))
+    }
+
+    @Test fun `roaming still needs a host`() {
+        assertFalse(OriginRule.allows(tm, "", roam = true))
+        assertFalse(OriginRule.allows(tm, null, roam = true))
+    }
+
+    @Test fun `roaming does not loosen non-web schemes`() {
+        assertEquals(Decision.BLOCK, OriginRule.decide(tm, "file", null, false, roam = true))
+        assertEquals(Decision.BLOCK, OriginRule.decide(tm, "intent", "x", false, roam = true))
+        assertEquals(Decision.HAND_OFF, OriginRule.decide(tm, "tel", null, false, roam = true))
+    }
 }
 
 class SignInHopTest {
