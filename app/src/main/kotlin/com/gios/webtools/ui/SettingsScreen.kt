@@ -29,6 +29,8 @@ fun SettingsScreen(
     onCycleEngine: () -> Unit,
     graceMs: Long,
     onCycleGrace: () -> Unit,
+    colour: String,
+    onToggleColour: () -> Unit,
     isBrowser: Boolean,
     onAskBrowser: () -> Unit,
     passkeys: String,
@@ -44,6 +46,7 @@ fun SettingsScreen(
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll)) {
             FactRow("Search engine", engine.label, lit = true, onClick = onCycleEngine)
             FactRow("Keep a page warm", Warmth.graceLabel(graceMs), lit = true, onClick = onCycleGrace)
+            FactRow("Colour", colour, lit = colour == "ON", onClick = onToggleColour)
             FactRow(
                 if (isBrowser) "The phone's browser" else "Set as default browser",
                 if (isBrowser) "yes" else "not yet",

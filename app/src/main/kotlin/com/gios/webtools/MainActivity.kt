@@ -1,5 +1,6 @@
 package com.gios.webtools
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -139,6 +140,8 @@ class MainActivity : ComponentActivity() {
     private var pageLoading by mutableStateOf(false)
     private var engine by mutableStateOf(SearchEngine.DUCKDUCKGO)
     private var graceMs by mutableStateOf(Warmth.GRACE_MS)
+    private var colourOn by mutableStateOf(false)
+    private var colourGranted by mutableStateOf(false)
 
     /** A page closed while the app was in the background, to be re-opened where it was. */
     private data class Parked(val tool: Tool, val url: String?, val saved: Boolean)
@@ -325,25 +328,34 @@ class MainActivity : ComponentActivity() {
                                     onBack = { go(Screen.Home) },
                                 )
                             }
-                            Screen.Settings -> SettingsScreen(
-                                scroll = pageScroll,
-                                engine = engine,
-                                onCycleEngine = { cycleEngine() },
-                                graceMs = graceMs,
-                                onCycleGrace = {
-                                    graceMs = Warmth.nextGrace(graceMs)
-                                    prefs.graceMs = graceMs
-                                },
-                                isBrowser = isBrowser,
-                                onAskBrowser = { askBrowserRole() },
-                                passkeys = passkeyState(),
-                                onPasskeys = { say(passkeyAdvice()) },
-                                about = "Web Tools ${BuildConfig.VERSION_NAME} · GeckoView " +
-                                    org.mozilla.geckoview.BuildConfig.MOZ_APP_VERSION +
-                                    " · uBlock Origin, always on\n" + Device.summary(this@MainActivity),
-                                onTutorial = { go(Screen.Tutorial) },
-                                onBack = { go(Screen.Home) },
-                            )
+                            Screen.Settings -> {
+                                LaunchedEffect(Unit) { refreshColour() }
+                                SettingsScreen(
+                                    scroll = pageScroll,
+                                    engine = engine,
+                                    onCycleEngine = { cycleEngine() },
+                                    graceMs = graceMs,
+                                    onCycleGrace = {
+                                        graceMs = Warmth.nextGrace(graceMs)
+                                        prefs.graceMs = graceMs
+                                    },
+                                    colour = when {
+                                        !colourGranted -> "NEEDS GRANT"
+                                        colourOn -> "ON"
+                                        else -> "OFF"
+                                    },
+                                    onToggleColour = { toggleColour() },
+                                    isBrowser = isBrowser,
+                                    onAskBrowser = { askBrowserRole() },
+                                    passkeys = passkeyState(),
+                                    onPasskeys = { say(passkeyAdvice()) },
+                                    about = "Web Tools ${BuildConfig.VERSION_NAME} · GeckoView " +
+                                        org.mozilla.geckoview.BuildConfig.MOZ_APP_VERSION +
+                                        " · uBlock Origin, always on\n" + Device.summary(this@MainActivity),
+                                    onTutorial = { go(Screen.Tutorial) },
+                                    onBack = { go(Screen.Home) },
+                                )
+                            }
                             is Screen.Add -> AddScreen(
                                 message = s.message,
                                 scroll = pageScroll,
@@ -481,6 +493,8 @@ class MainActivity : ComponentActivity() {
         const val ACTION_PICK_CODE = "com.gios.lightauth.PICK_CODE"
         const val BITWARDEN_PACKAGE = "com.x8bit.bitwarden"
         const val CONTROL_PACKAGE = "com.gios.lightcontrol"
+        const val DALTONIZER_ENABLED = "accessibility_display_daltonizer_enabled"
+        const val DALTONIZER_MODE = "accessibility_display_daltonizer"
 
         /** BrightControl's door for an app asking to have its own setup run over the shell. */
         const val CONTROL_RUN_GRANTS = "com.gios.lightcontrol.action.RUN_GRANTS"
@@ -710,6 +724,30 @@ class MainActivity : ComponentActivity() {
             return
         }
         isBrowser = resolvesWebLinks()
+    }
+
+    private fun refreshColour() {
+        colourGranted = checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED
+        colourOn = runCatching {
+            Settings.Secure.getInt(contentResolver, DALTONIZER_ENABLED, 0) == 0
+        }.getOrDefault(false)
+    }
+
+    private fun toggleColour() {
+        refreshColour()
+        if (!colourGranted) {
+            say("Needs the shell: adb shell pm grant $packageName ${Manifest.permission.WRITE_SECURE_SETTINGS}")
+            return
+        }
+        val grayscale = if (colourOn) 1 else 0
+        try {
+            if (grayscale == 1) Settings.Secure.putInt(contentResolver, DALTONIZER_MODE, 0)
+            Settings.Secure.putInt(contentResolver, DALTONIZER_ENABLED, grayscale)
+            colourOn = grayscale == 0
+        } catch (_: SecurityException) {
+            colourGranted = false
+            say("Needs the shell: adb shell pm grant $packageName ${Manifest.permission.WRITE_SECURE_SETTINGS}")
+        }
     }
 
     /** The package that answers a plain `https` address, or "" when it is a chooser or nothing. */
