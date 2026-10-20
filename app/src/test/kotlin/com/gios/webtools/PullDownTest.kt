@@ -49,6 +49,23 @@ class PullDownTest {
         assertEquals(300f, p.travel, 0f)
     }
 
+    @Test fun `a pull that has started survives a sideways thumb arc`() {
+        val p = g()
+        p.down(100f, 100f)
+        assertTrue(p.move(100f, 300f))
+        assertTrue(p.move(700f, 340f))
+        assertEquals(Stage.TRACKING, p.stage)
+        assertEquals(240f, p.travel, 0f)
+        assertEquals(240f, p.up(), 0f)
+    }
+
+    @Test fun `a diagonal pull is not a sideways scrub`() {
+        val p = g()
+        p.down(100f, 100f)
+        assertTrue(p.move(140f, 130f))
+        assertEquals(30f, p.travel, 0f)
+    }
+
     @Test fun `move reports when the stroke should be claimed`() {
         val p = g()
         p.down(0f, 0f)

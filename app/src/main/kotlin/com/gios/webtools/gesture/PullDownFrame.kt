@@ -14,13 +14,13 @@ import android.widget.FrameLayout
  * pulls down, the pulley menu draws out and the lift picks an item.
  *
  * Interception is what makes this work over a page and a Compose list alike: once the stroke is
- * claimed the child gets a CANCEL and the frame owns the rest. Strokes that head up, or sideways,
- * or start with content scrolled down, are never touched.
+ * claimed the child gets a CANCEL and the frame owns the rest. Strokes that head up, begin as a
+ * sideways scrub, or start with content scrolled down, are never touched.
  *
  * A web engine asks its parent not to intercept as soon as it starts handling a drag
  * (`requestDisallowInterceptTouchEvent`), which is why the first build only worked from the very
  * top edge. The frame ignores that request while a pull is still possible and honors it once the
- * pull is off (sideways, or upward). A stroke that starts in the top band of the screen may pull
+ * stroke is off (upward, or a scrub). A stroke that starts in the top band of the screen may pull
  * regardless of scroll position.
  */
 class PullDownFrame(context: Context) : FrameLayout(context) {
