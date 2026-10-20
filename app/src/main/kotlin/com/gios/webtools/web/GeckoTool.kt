@@ -4,6 +4,9 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.gios.webtools.data.Tool
 import com.gios.webtools.data.ToolKind
 import com.gios.webtools.report.PageLog
@@ -54,8 +57,13 @@ class GeckoTool(
     val session: GeckoSession
     var scrollY: Int = 0
         private set
-    var canGoBack: Boolean = false
-    var canGoForward: Boolean = false
+    /**
+     * Whether the engine can walk the page back or forward. These are state, not plain flags:
+     * the menu's rows are decided while the screen is drawn, and a page that has just been
+     * walked back has a forward page that only the engine knows about.
+     */
+    var canGoBack by mutableStateOf(false)
+    var canGoForward by mutableStateOf(false)
         private set
     var currentUrl: String? = null
         private set

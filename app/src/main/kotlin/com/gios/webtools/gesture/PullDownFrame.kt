@@ -20,10 +20,20 @@ import android.widget.FrameLayout
  * A web engine asks its parent not to intercept as soon as it starts handling a drag
  * (`requestDisallowInterceptTouchEvent`), which is why the first build only worked from the very
  * top edge. The frame ignores that request while a pull is still possible and honors it once the
- * stroke is off (upward, or a scrub). A stroke that starts in the top band of the screen may pull
- * regardless of scroll position.
+ * stroke is off (upward, or a scrub). A stroke that starts in the pull band just below Android's
+ * top strip may pull regardless of scroll position.
  */
 class PullDownFrame(context: Context) : FrameLayout(context) {
+
+    companion object {
+        /** The pull band: below Android's top strip, with 60dp of thumb room. */
+        const val BAND_START_DP = 28f
+        const val BAND_END_DP = 88f
+
+        /** The black strip that carries the handle line, and its line's rise above the bottom. */
+        const val HANDLE_BAR_DP = 38f
+        const val HANDLE_LINE_BOTTOM_DP = 4f
+    }
 
     /** How many items the menu has right now; 0 disables the pull. */
     var itemCount: () -> Int = { 1 }
@@ -33,6 +43,9 @@ class PullDownFrame(context: Context) : FrameLayout(context) {
 
     /** The lift committed on an item. */
     var onSelect: (index: Int) -> Unit = {}
+
+    /** A tap on the handle bar, where the system steals drags. */
+    var onTopTap: () -> Unit = {}
 
     private val density = context.resources.displayMetrics.density
     /** The empty band before the first row becomes live. */
@@ -64,19 +77,25 @@ class PullDownFrame(context: Context) : FrameLayout(context) {
     }
     private var claimed = false
     private var eligible = false
+    private var tapping = false
+    private var tapCancelled = false
     private var lastPicked = -1
 
     /**
-     * How far down the screen a pull may begin: a strip along the very top, the way a
-     * notification shade is grabbed.
+     * Where a pull may begin: a band just below Android's own top strip.
      *
-     * It used to be this strip *or* "the content is at its top", and the second half was the
+     * The first ~25dp of the screen belongs to the system. A fast stroke there is cancelled before
+     * the frame sees a move; a slow one sometimes gets through, which is why the pull felt
+     * speed-sensitive. Starting 28dp down keeps thumb room, moved clear of the system.
+     *
+     * It used to be "the top strip *or* the content is at its top", and the second half was the
      * problem. A page scrolled to the top is the normal state of a page you have just opened, so
      * every downward stroke anywhere on it opened the menu instead of scrolling — the whole
-     * screen was a handle. One strip, always, is a rule the thumb learns once — 56dp of it,
-     * because 28 was the top edge and nothing else, and a thumb aiming at 28dp misses.
+     * screen was a handle. One band, always, is a rule the thumb learns once.
      */
-    private val topBandPx: Float = 56f * density
+    private val topBandStartPx: Float = BAND_START_DP * density
+    private val topBandEndPx: Float = BAND_END_DP * density
+    private val handleBarPx: Float = HANDLE_BAR_DP * density
 
     override fun requestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {
         // The child does not get to veto a pull that is still possible.
@@ -85,14 +104,17 @@ class PullDownFrame(context: Context) : FrameLayout(context) {
     }
 
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+        if (tapping) return true
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 claimed = false
                 lastPicked = -1
-                eligible = itemCount() > 0 && ev.y < topBandPx
-                if (eligible) gesture.down(ev.x, ev.y) else gesture.reset()
+                tapping = itemCount() > 0 && ev.y < handleBarPx
+                tapCancelled = false
+                eligible = !tapping && itemCount() > 0 && ev.y >= topBandStartPx && ev.y < topBandEndPx
+                if (tapping || eligible) gesture.down(ev.x, ev.y) else gesture.reset()
                 report()
-                return false
+                return tapping
             }
             MotionEvent.ACTION_MOVE -> {
                 if (!eligible || claimed) return claimed
@@ -121,6 +143,39 @@ class PullDownFrame(context: Context) : FrameLayout(context) {
     }
 
     override fun onTouchEvent(ev: MotionEvent): Boolean {
+        if (tapping && !claimed) {
+            when (ev.actionMasked) {
+                MotionEvent.ACTION_MOVE -> {
+                    val wants = gesture.move(ev.x, ev.y)
+                    report()
+                    if (gesture.stage == PullDown.Stage.CANCELLED || (ev.y - gesture.startY) < -slop) {
+                        tapCancelled = true
+                    } else if (wants) {
+                        claimed = true
+                    }
+                    return true
+                }
+                MotionEvent.ACTION_UP -> {
+                    val tap = !tapCancelled && gesture.travel <= slop
+                    tapping = false
+                    tapCancelled = false
+                    gesture.reset()
+                    claimed = false
+                    report()
+                    if (tap) onTopTap()
+                    return true
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    tapping = false
+                    tapCancelled = false
+                    gesture.reset()
+                    claimed = false
+                    report()
+                    return true
+                }
+                else -> return true
+            }
+        }
         if (!claimed) return false
         when (ev.actionMasked) {
             MotionEvent.ACTION_MOVE -> {
@@ -131,12 +186,16 @@ class PullDownFrame(context: Context) : FrameLayout(context) {
                 val travel = gesture.up()
                 val picked = Pulley.select(travel, itemCount(), pitchPx, deadzonePx)
                 claimed = false
+                tapping = false
+                tapCancelled = false
                 report()
                 if (picked >= 0) onSelect(picked)
             }
             MotionEvent.ACTION_CANCEL -> {
                 gesture.reset()
                 claimed = false
+                tapping = false
+                tapCancelled = false
                 report()
             }
         }
