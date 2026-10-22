@@ -26,13 +26,15 @@ DuckDuckGo, Ecosia or Kagi. No feed, no suggestions, no history you did not ask 
 - **A shelf page stays inside its site.** A tool for `ticketmaster.com` can reach
   `auth.ticketmaster.com` and nothing else. A link elsewhere is a dead end, with a note at the
   bottom of the screen and an *Allow* row on the tool's page.
-- **The pull-down menu.** From the top of any page, pull down. A menu unrolls from the top edge,
-  the way a Sailfish pulley does, one row at a time, each lit as it comes; let go on a lit row.
-  The first rows are BACK, FORWARD and REFRESH. CONVERT hides two rows behind one: let go on it
-  and the next pull offers MAKE A TICKET and SEND TO LIBRARY. SAVE A COPY keeps the page as a PDF. MAKE A TICKET sends a picture of the page to Movie
-  Tickets (BrightPasses) and keeps the page ready for an hour. READER VIEW shows the text only. SET AS HOME makes the
-  current page the tool's start page. TOOLS is last, so the longest pull always goes back to the
-  list.
+- **The pull-down menu.** Pull or tap the short line just below the top edge of any page. A menu
+  unrolls from the top edge, the way a Sailfish pulley does, one row at a time, each lit as it
+  comes; tap a row, or let go on the lit one. Tap the line again or tap outside to close.
+  BACK is first; when there is a page ahead, FORWARD is next; then REFRESH. CONVERT hides two rows
+  behind one: let go on it and the next pull offers MAKE A TICKET and SEND TO LIBRARY. SAVE A COPY
+  keeps the page as a PDF. MAKE A TICKET sends a picture of the page to Movie Tickets
+  (BrightPasses) and keeps the page ready for an hour. READER VIEW shows the text only. SET AS
+  HOME makes the current page the tool's start page. TOOLS is last, so the longest pull always
+  goes back to the list.
 - **uBlock Origin and strict tracking protection**, always on. "Open in the app" banners are
   hidden by the class names the vendors use.
 - **Saved copies.** Turn on *Keeping a copy* and the engine prints the page to a PDF after every

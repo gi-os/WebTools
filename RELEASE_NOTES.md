@@ -1,33 +1,39 @@
-# WebTools 3.6 — the first launch after a while no longer crashes
+# WebTools 3.6 — a menu you can tap, and the way back
 
 ## In this release
 
-- **The crash on the first launch after a while is fixed.** Open the app after leaving it alone
-  for an afternoon and it died instantly; open it again and it was fine. Two things caused that,
-  and both are changed.
+- **The pull-down menu can be opened with a tap.** The very top of the screen belongs to the
+  system, and a pull that started there never reached the app — so the menu that unrolls from
+  the top edge was a gesture you could not always make. The short line just below the top edge
+  is the app's. Tap it and the same menu comes down and stays: every row is a target, the lit
+  row says TAP, and tapping the line again or tapping outside puts it away. Pulling still works
+  the same way, and a pull still ends on the row under the thumb.
 
-  The app kills its own process a few minutes after the page is parked, to hand Firefox's several
-  hundred megabytes back to the phone. It killed only the process you can see. The engine runs its
-  pages in processes of their own, and those were left for the system to reap whenever it got
-  round to it — so the next launch was racing that cleanup. They are killed first now, and this
-  process last.
+- **The menu has a way back and a way forward.** BACK is the first row on a page: it walks one
+  page back, or goes to the shelf when there is no page behind. FORWARD comes next when there
+  is a page ahead — after you have walked back, the page you came from is still there, and the
+  menu now says so. The rows a menu opens with are the rows it keeps, so they never move under
+  a thumb that is on its way to one.
 
-  The engine is also told to shut down now, and given a moment to do it, rather than being cut
-  off mid-sentence. That is what stops the mess below from being made in the first place.
+- **The launcher icon is called Tools.** It was called WebTools. The app is a shelf of pages, not
+  a browser, and the name on the home screen now says what it is.
 
-  The other half is on disk. The engine keeps a startup cache, and being killed mid-write is how a
-  half-written one is left behind. Reading it takes the launch down; the launch after that works
-  because the failed one cleared it on the way out. So the app now writes down that a launch has
-  started and clears that mark once it is on screen. A launch that finds the mark still set knows
-  the last one never arrived, and throws the startup cache away before the engine can read it.
-  Whatever was left behind, the launch that follows is clean.
+- **Settings can take the colour out of the screen.** A COLOUR row in Settings turns the phone
+  grey and back. It asks for the shell first, because it is a system setting:
+  `adb shell pm grant com.gios.webtools android.permission.WRITE_SECURE_SETTINGS`.
 
-- **An engine that will not start no longer takes the app with it.** If it fails anyway, the
-  shelf, Settings and the report sheet all still open, opening a page says what happened instead
-  of closing the app, and the reason travels in the bug report.
+- **A pull that drifts sideways is still a pull.** The pull follows the thumb as it moves; it
+  used to give up when the thumb crossed the screen rather than coming down it.
+
+- **The crash on the first launch after a while stays fixed.** The engine's pages are shut down
+  before the app's own process, and a launch that finds a half-written startup cache throws it
+  away instead of reading it.
 
 ## Known limits
 
+- A drag that starts in the topmost strip of the screen still belongs to the system. A tap just
+  below it does not, which is why the menu answers to a tap as well as a pull.
+- The COLOUR row needs the shell grant before it will do anything.
 - BrightControl needs its ADB connection up for the browser row to work. Without it the row still
   names the command.
 - First launch is slower: the engine starts and the two extensions install, once. A launch that

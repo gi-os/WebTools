@@ -1,6 +1,7 @@
 package com.gios.webtools.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,17 +31,26 @@ import com.gios.webtools.ui.theme.RuleGrey
  * The menu the pull draws out of the top edge. It unrolls downward, the way the thumb moves: a
  * band with a handle first, then row one, row two, and so on. Letting go on a lit row does it;
  * letting go early does nothing. Past the last row the last row stays lit, so a long pull always
- * lands there.
+ * lands there. The same menu can be opened by tapping the handle bar, where the system owns the
+ * top edge; then every row is a tap target and the lit row says TAP.
  *
  * **A lit row is marked, not filled.** A white block behind black text is the loudest thing this
  * app can draw, and it appeared and vanished under the thumb at every row — the menu flashed
  * rather than moved. Now every row keeps the page's black, the labels sit dim, and the row the
  * thumb has reached turns white and grows a short bar at the left edge. The eye follows the bar
  * down the list. The lit row says LET GO, which is the only instruction the gesture ever needed;
- * the others say nothing, because a row you cannot tap by number does not need one.
+ * the others say nothing, because the lit row is the instruction.
  */
 @Composable
-fun PulleyMenu(items: List<String>, travelPx: Float, picked: Int, pitchDp: Float, deadzoneDp: Float) {
+fun PulleyMenu(
+    items: List<String>,
+    travelPx: Float,
+    picked: Int,
+    pitchDp: Float,
+    deadzoneDp: Float,
+    tapMode: Boolean = false,
+    onPick: ((Int) -> Unit)? = null,
+) {
     if (travelPx <= 0f || items.isEmpty()) return
     val density = LocalDensity.current
     val heightDp = with(density) { travelPx.toDp() }.coerceAtMost((deadzoneDp + items.size * pitchDp).dp)
@@ -58,9 +68,15 @@ fun PulleyMenu(items: List<String>, travelPx: Float, picked: Int, pitchDp: Float
                 Box(Modifier.width(28.dp).height(2.dp).background(Ghost))
             }
             Box(Modifier.fillMaxWidth().height(1.dp).background(RuleGrey))
+            val pick = onPick
             items.forEachIndexed { i, label ->
                 val lit = i == picked
-                Box(Modifier.fillMaxWidth().height(pitchDp.dp)) {
+                val row = if (pick != null) {
+                    Modifier.fillMaxWidth().height(pitchDp.dp).clickable { pick(i) }
+                } else {
+                    Modifier.fillMaxWidth().height(pitchDp.dp)
+                }
+                Box(row) {
                     if (lit) {
                         Box(
                             Modifier.align(Alignment.CenterStart).width(20.dp).height(2.dp).background(Color.White),
@@ -80,7 +96,7 @@ fun PulleyMenu(items: List<String>, travelPx: Float, picked: Int, pitchDp: Float
                         )
                         if (lit) {
                             Spacer(Modifier.width(12.dp))
-                            Text("LET GO", style = Mono.label, color = Dim)
+                            Text(if (tapMode) "TAP" else "LET GO", style = Mono.label, color = Dim)
                         }
                     }
                 }

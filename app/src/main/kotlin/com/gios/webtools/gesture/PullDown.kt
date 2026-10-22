@@ -5,8 +5,10 @@ import kotlin.math.abs
 /**
  * The pull. From the top of whatever is on screen, the thumb draws down a menu; how far it has
  * come picks an item; the lift commits (Sailfish's pulley menu, BrightControl's arm-on-cross,
- * commit-on-lift rule). Coming back up un-picks. A stroke that drifts further sideways than
- * down is cancelled for the rest of the stroke, so a scrub across a page never opens anything.
+ * commit-on-lift rule). Coming back up un-picks. A stroke that is mostly sideways before it has
+ * pulled is cancelled, so a scrub across a page never opens anything; once the pull has started,
+ * the thumb's sideways arc is ignored, because dropping the menu halfway through is worse than
+ * letting a diagonal pull through.
  *
  * Pure: pixels in, travel out. [Pulley] turns travel into an item; the view layer decides when a
  * stroke may even start (content at its top) and draws the menu from [travel].
@@ -26,8 +28,11 @@ class PullDown(private val slopPx: Float) {
     var travel = 0f
         private set
 
+    /** Whether this stroke has already crossed the slop and become a pull. */
+    private var started = false
+
     fun down(x: Float, y: Float) {
-        startX = x; startY = y; travel = 0f
+        startX = x; startY = y; travel = 0f; started = false
         stage = Stage.TRACKING
     }
 
@@ -35,15 +40,22 @@ class PullDown(private val slopPx: Float) {
     fun move(x: Float, y: Float): Boolean {
         if (stage != Stage.TRACKING) return false
         val dx = x - startX
-        val dy = y - startY
-        // Sideways wins: a long flick that ends with a drift is the stroke this rule exists for.
-        if (abs(dx) > slopPx && abs(dx) > dy) {
-            stage = Stage.CANCELLED
-            travel = 0f
-            return false
+        val down = (y - startY).coerceAtLeast(0f)
+        if (!started) {
+            // A flick that is still mostly across the page is a scrub, not a pull. Give a
+            // diagonal thumb the benefit of the doubt when it is at least half downward.
+            if (abs(dx) > slopPx && abs(dx) > down * 2f) {
+                stage = Stage.CANCELLED
+                travel = 0f
+                return false
+            }
+            travel = down
+            if (down > slopPx) started = true
+            return started
         }
-        travel = if (dy > 0f) dy else 0f
-        return dy > slopPx
+        // Once it is a pull, sideways drift is just the thumb's arc. Keep the travel.
+        travel = down
+        return true
     }
 
     /** The travel at the lift, or 0 when the stroke was cancelled. Always resets. */
@@ -56,6 +68,7 @@ class PullDown(private val slopPx: Float) {
     fun reset() {
         stage = Stage.IDLE
         travel = 0f
+        started = false
     }
 }
 

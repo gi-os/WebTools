@@ -55,16 +55,17 @@ private val PAGES = listOf(
     ),
     Page(
         "Pull down",
-        "Start at the very top edge and pull, the way you pull a notification shade. Rows unroll " +
-            "one at a time. Let go on the lit one.\n\nLet go early and nothing happens. Pull all the " +
-            "way and you are back at the shelf.\n\nBACK, FORWARD, REFRESH. SAVE A COPY keeps the page " +
+        "Tap the short line just below the top edge, or pull it down. Rows unroll " +
+            "one at a time. Tap a row, or let go on the lit one.\n\nTap again, or tap outside, to close. " +
+            "Pull all the way and you are back at the shelf.\n\nBACK goes one page back or to the shelf; " +
+            "FORWARD appears when there is a page ahead; REFRESH. SAVE A COPY keeps the page " +
             "as a PDF. READER VIEW drops everything but the words. CONVERT sends the page to Movie " +
             "Tickets or the Library.",
     ),
     Page(
         "The wheel",
-        "Turn it to scroll. Press it for the flashlight, as always.\n\nTo go back a page, pull " +
-            "down from the top edge and let go on BACK.",
+        "Turn it to scroll. Press it for the flashlight, as always.\n\nTo go back a page, tap " +
+            "the short line and tap BACK, or pull the line down and let go on BACK.",
     ),
     Page(
         "No signal",

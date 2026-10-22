@@ -1,5 +1,6 @@
 package com.gios.webtools
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -17,9 +18,14 @@ import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -28,11 +34,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
@@ -70,6 +78,7 @@ import com.gios.webtools.ui.TutorialScreen
 import androidx.compose.foundation.background
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import com.gios.webtools.ui.theme.Faint
 import com.gios.webtools.ui.theme.Metrics
 import com.gios.webtools.ui.theme.WebToolsTheme
 import com.gios.webtools.web.GeckoTool
@@ -120,6 +129,10 @@ class MainActivity : ComponentActivity() {
     private var status by mutableStateOf<String?>(null)
     private var pullTravel by mutableFloatStateOf(0f)
     private var pullPicked by mutableStateOf(-1)
+    private var pullMenu by mutableStateOf(false)
+
+    /** The rows the open menu shows, fixed when it opened. */
+    private var pullMenuItems by mutableStateOf<List<String>>(emptyList())
     private var pullFrame: PullDownFrame? = null
     private val pulleyPitchDp: Float get() = (pullFrame?.pitchPx ?: (64f * resources.displayMetrics.density)) / resources.displayMetrics.density
     private var pulleyDeadzoneDp = 36f
@@ -139,6 +152,8 @@ class MainActivity : ComponentActivity() {
     private var pageLoading by mutableStateOf(false)
     private var engine by mutableStateOf(SearchEngine.DUCKDUCKGO)
     private var graceMs by mutableStateOf(Warmth.GRACE_MS)
+    private var colourOn by mutableStateOf(false)
+    private var colourGranted by mutableStateOf(false)
 
     /** A page closed while the app was in the background, to be re-opened where it was. */
     private data class Parked(val tool: Tool, val url: String?, val saved: Boolean)
@@ -199,6 +214,7 @@ class MainActivity : ComponentActivity() {
         frame.itemCount = { pulleyItems().size }
         frame.onProgress = { travel, picked -> pullTravel = travel; pullPicked = picked }
         frame.onSelect = { index -> pulleyPick(index) }
+        frame.onTopTap = { togglePullMenu() }
         val d = resources.displayMetrics.density
         pulleyDeadzoneDp = frame.deadzonePx / d
         pullFrame = frame
@@ -273,134 +289,171 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun Root() {
         val tools by store.tools.collectAsStateWithLifecycle()
+        val liveItems = pulleyItems()
+        // An open menu keeps the rows it was opened with. The page behind it can change under
+        // the menu — walked back, say, which leaves a forward page the menu must offer — and a
+        // menu that changed under the thumb would move the rows the thumb is on.
+        val pullItems = if (pullMenu) pullMenuItems else liveItems
+        val pullable = liveItems.isNotEmpty()
+        val menuTravelPx = with(LocalDensity.current) {
+            (pulleyDeadzoneDp + pullItems.size * pulleyPitchDp).dp.toPx()
+        }
+        LaunchedEffect(screen) { if (pullMenu) closePullMenu() }
         WebToolsTheme {
             Surface(Modifier.fillMaxSize()) {
                 CompositionLocalProvider(LocalWheelBus provides wheel) {
                     Box(Modifier.fillMaxSize()) {
-                        when (val s = screen) {
-                            Screen.Tutorial -> TutorialScreen(scroll = pageScroll) {
-                                prefs.tutorialSeen = true
-                                go(Screen.Home)
-                            }
-                            Screen.Home -> ListScreen(
-                                tools = tools,
-                                listState = listState,
-                                onSearch = { typed -> lookUp(typed) },
-                                onOpen = { show(it) },
-                                onInfo = { go(Screen.Info(it.id)) },
-                                onFolder = { go(Screen.Folder(it)) },
-                                onAdd = { go(Screen.Add()) },
-                                onDownloads = { go(Screen.Downloads) },
-                                onSettings = { go(Screen.Settings) },
-                            )
-                            is Screen.Folder -> FolderScreen(
-                                folder = s.name,
-                                tools = Shelf.inFolder(tools, s.name),
-                                listState = folderList,
-                                onOpen = { show(it) },
-                                onInfo = { go(Screen.Info(it.id)) },
-                                onBack = { go(Screen.Home) },
-                            )
-                            is Screen.PickFolder -> {
-                                val t = store.get(s.id)
-                                if (t == null) LaunchedEffect(Unit) { go(Screen.Home) } else FolderPickScreen(
-                                    tool = t,
-                                    folders = Shelf.folders(tools),
-                                    listState = folderList,
-                                    onPick = { f ->
-                                        store.update(t.id) { it.copy(folder = f) }
-                                        say(if (f.isEmpty()) "Back on the shelf" else "Filed under $f")
-                                        go(Screen.Info(t.id))
-                                    },
-                                    onBack = { go(Screen.Info(t.id)) },
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .padding(top = if (pullable) PullDownFrame.HANDLE_BAR_DP.dp else 0.dp),
+                        ) {
+                            when (val s = screen) {
+                                Screen.Tutorial -> TutorialScreen(scroll = pageScroll) {
+                                    prefs.tutorialSeen = true
+                                    go(Screen.Home)
+                                }
+                                Screen.Home -> ListScreen(
+                                    tools = tools,
+                                    listState = listState,
+                                    onSearch = { typed -> lookUp(typed) },
+                                    onOpen = { show(it) },
+                                    onInfo = { go(Screen.Info(it.id)) },
+                                    onFolder = { go(Screen.Folder(it)) },
+                                    onAdd = { go(Screen.Add()) },
+                                    onDownloads = { go(Screen.Downloads) },
+                                    onSettings = { go(Screen.Settings) },
                                 )
-                            }
-                            Screen.Downloads -> {
-                                val items by downloads.items.collectAsStateWithLifecycle()
-                                DownloadsScreen(
-                                    items = items,
-                                    listState = downloadsList,
-                                    onOpen = { openDownload(it) },
-                                    onRemove = { downloads.remove(it); say("Removed ${it.name}") },
+                                is Screen.Folder -> FolderScreen(
+                                    folder = s.name,
+                                    tools = Shelf.inFolder(tools, s.name),
+                                    listState = folderList,
+                                    onOpen = { show(it) },
+                                    onInfo = { go(Screen.Info(it.id)) },
                                     onBack = { go(Screen.Home) },
                                 )
-                            }
-                            Screen.Settings -> SettingsScreen(
-                                scroll = pageScroll,
-                                engine = engine,
-                                onCycleEngine = { cycleEngine() },
-                                graceMs = graceMs,
-                                onCycleGrace = {
-                                    graceMs = Warmth.nextGrace(graceMs)
-                                    prefs.graceMs = graceMs
-                                },
-                                isBrowser = isBrowser,
-                                onAskBrowser = { askBrowserRole() },
-                                passkeys = passkeyState(),
-                                onPasskeys = { say(passkeyAdvice()) },
-                                about = "Web Tools ${BuildConfig.VERSION_NAME} · GeckoView " +
-                                    org.mozilla.geckoview.BuildConfig.MOZ_APP_VERSION +
-                                    " · uBlock Origin, always on\n" + Device.summary(this@MainActivity),
-                                onTutorial = { go(Screen.Tutorial) },
-                                onBack = { go(Screen.Home) },
-                            )
-                            is Screen.Add -> AddScreen(
-                                message = s.message,
-                                scroll = pageScroll,
-                                onScan = { scan() },
-                                onAddUrl = { addFromText(it) },
-                                onAddStarter = { addStarter(it) },
-                                onBack = { go(Screen.Home) },
-                            )
-                            is Screen.Info -> {
-                                val tool = tools.firstOrNull { it.id == s.id }
-                                if (tool == null) {
-                                    LaunchedEffect(Unit) { go(Screen.Home) }
-                                } else {
-                                    InfoScreen(
-                                        tool = tool,
-                                        scroll = pageScroll,
-                                        online = online(),
-                                        index = Shelf.entries(tools).indexOfFirst { e -> e is Shelf.Entry.Single && e.tool.id == tool.id }
-                                            .takeIf { it >= 0 }?.plus(1),
-                                        onOpen = { show(tool) },
-                                        onOpenSaved = { show(tool, forceSaved = true) },
-                                        blockedHost = lastBlocked[tool.id],
-                                        onAllowBlocked = {
-                                            lastBlocked[tool.id]?.let { h ->
-                                                store.update(tool.id) { t -> if (t.origins.contains(h)) t else t.copy(origins = t.origins + h) }
-                                                lastBlocked.remove(tool.id)
-                                            }
+                                is Screen.PickFolder -> {
+                                    val t = store.get(s.id)
+                                    if (t == null) LaunchedEffect(Unit) { go(Screen.Home) } else FolderPickScreen(
+                                        tool = t,
+                                        folders = Shelf.folders(tools),
+                                        listState = folderList,
+                                        onPick = { f ->
+                                            store.update(t.id) { it.copy(folder = f) }
+                                            say(if (f.isEmpty()) "Back on the shelf" else "Filed under $f")
+                                            go(Screen.Info(t.id))
                                         },
-                                        onToggleKeep = { store.update(tool.id) { t -> t.copy(keep = !t.keep) } },
-                                        onToggleReader = { store.update(tool.id) { t -> t.copy(reader = !t.reader) } },
-                                        onToggleBlocking = {
-                                            store.update(tool.id) { t -> t.copy(blocking = !t.blocking) }
-                                            say(if (tool.blocking) "Blocking off. Open it again." else "Blocking on. Open it again.")
-                                        },
-                                        onToggleRoam = {
-                                            store.update(tool.id) { t -> t.copy(roam = !t.roam) }
-                                            say(if (tool.roam) "Wall back on. Open it again." else "Roaming on. Open it again.")
-                                        },
-                                        onFolder = { go(Screen.PickFolder(tool.id)) },
-                                        onForgetLogin = { forgetLogin(tool) },
-                                        onRemove = { store.remove(tool.id); go(Screen.Home) },
+                                        onBack = { go(Screen.Info(t.id)) },
+                                    )
+                                }
+                                Screen.Downloads -> {
+                                    val items by downloads.items.collectAsStateWithLifecycle()
+                                    DownloadsScreen(
+                                        items = items,
+                                        listState = downloadsList,
+                                        onOpen = { openDownload(it) },
+                                        onRemove = { downloads.remove(it); say("Removed ${it.name}") },
                                         onBack = { go(Screen.Home) },
                                     )
                                 }
+                                Screen.Settings -> {
+                                    LaunchedEffect(Unit) { refreshColour() }
+                                    SettingsScreen(
+                                        scroll = pageScroll,
+                                        engine = engine,
+                                        onCycleEngine = { cycleEngine() },
+                                        graceMs = graceMs,
+                                        onCycleGrace = {
+                                            graceMs = Warmth.nextGrace(graceMs)
+                                            prefs.graceMs = graceMs
+                                        },
+                                        colour = when {
+                                            !colourGranted -> "NEEDS GRANT"
+                                            colourOn -> "ON"
+                                            else -> "OFF"
+                                        },
+                                        onToggleColour = { toggleColour() },
+                                        isBrowser = isBrowser,
+                                        onAskBrowser = { askBrowserRole() },
+                                        passkeys = passkeyState(),
+                                        onPasskeys = { say(passkeyAdvice()) },
+                                        about = "Web Tools ${BuildConfig.VERSION_NAME} · GeckoView " +
+                                            org.mozilla.geckoview.BuildConfig.MOZ_APP_VERSION +
+                                            " · uBlock Origin, always on\n" + Device.summary(this@MainActivity),
+                                        onTutorial = { go(Screen.Tutorial) },
+                                        onBack = { go(Screen.Home) },
+                                    )
+                                }
+                                is Screen.Add -> AddScreen(
+                                    message = s.message,
+                                    scroll = pageScroll,
+                                    onScan = { scan() },
+                                    onAddUrl = { addFromText(it) },
+                                    onAddStarter = { addStarter(it) },
+                                    onBack = { go(Screen.Home) },
+                                )
+                                is Screen.Info -> {
+                                    val tool = tools.firstOrNull { it.id == s.id }
+                                    if (tool == null) {
+                                        LaunchedEffect(Unit) { go(Screen.Home) }
+                                    } else {
+                                        InfoScreen(
+                                            tool = tool,
+                                            scroll = pageScroll,
+                                            online = online(),
+                                            index = Shelf.entries(tools).indexOfFirst { e -> e is Shelf.Entry.Single && e.tool.id == tool.id }
+                                                .takeIf { it >= 0 }?.plus(1),
+                                            onOpen = { show(tool) },
+                                            onOpenSaved = { show(tool, forceSaved = true) },
+                                            blockedHost = lastBlocked[tool.id],
+                                            onAllowBlocked = {
+                                                lastBlocked[tool.id]?.let { h ->
+                                                    store.update(tool.id) { t -> if (t.origins.contains(h)) t else t.copy(origins = t.origins + h) }
+                                                    lastBlocked.remove(tool.id)
+                                                }
+                                            },
+                                            onToggleKeep = { store.update(tool.id) { t -> t.copy(keep = !t.keep) } },
+                                            onToggleReader = { store.update(tool.id) { t -> t.copy(reader = !t.reader) } },
+                                            onToggleBlocking = {
+                                                store.update(tool.id) { t -> t.copy(blocking = !t.blocking) }
+                                                say(if (tool.blocking) "Blocking off. Open it again." else "Blocking on. Open it again.")
+                                            },
+                                            onToggleRoam = {
+                                                store.update(tool.id) { t -> t.copy(roam = !t.roam) }
+                                                say(if (tool.roam) "Wall back on. Open it again." else "Roaming on. Open it again.")
+                                            },
+                                            onFolder = { go(Screen.PickFolder(tool.id)) },
+                                            onForgetLogin = { forgetLogin(tool) },
+                                            onRemove = { store.remove(tool.id); go(Screen.Home) },
+                                            onBack = { go(Screen.Home) },
+                                        )
+                                    }
+                                }
+                                is Screen.Page -> {
+                                    val p = page
+                                    if (p == null) LaunchedEffect(Unit) { go(Screen.Home) } else ToolScreen(session = p.session, status = status, loading = pageLoading, progress = pageProgress, onView = { toolView = it })
+                                }
                             }
-                            is Screen.Page -> {
-                                val p = page
-                                if (p == null) LaunchedEffect(Unit) { go(Screen.Home) } else ToolScreen(session = p.session, status = status, loading = pageLoading, progress = pageProgress, onView = { toolView = it })
-                            }
+                        }
+                        PullHandle(show = pullable)
+                        if (pullMenu) {
+                            val interaction = remember { MutableInteractionSource() }
+                            Box(
+                                Modifier.fillMaxSize().clickable(
+                                    interactionSource = interaction,
+                                    indication = null,
+                                ) { closePullMenu() },
+                            )
                         }
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                             PulleyMenu(
-                                items = pulleyItems(),
-                                travelPx = pullTravel,
+                                items = pullItems,
+                                travelPx = if (pullMenu) menuTravelPx else pullTravel,
                                 picked = pullPicked,
                                 pitchDp = pulleyPitchDp,
                                 deadzoneDp = pulleyDeadzoneDp,
+                                tapMode = pullMenu,
+                                onPick = if (pullMenu) { index -> pulleyPick(index) } else null,
                             )
                         }
                         // A word about what just happened, on any screen but a page (a page has
@@ -428,6 +481,26 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * The line the thumb aims at. The phone's bezel and the black page meet without a seam, so
+     * the pull needs a mark of its own; it sits at 32dp, clear of Android's top strip, which
+     * would cancel a stroke that began higher.
+     */
+    @Composable
+    private fun PullHandle(show: Boolean) {
+        if (!show) return
+        Box(Modifier.fillMaxWidth().height(PullDownFrame.HANDLE_BAR_DP.dp).background(Color.Black)) {
+            Box(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = PullDownFrame.HANDLE_LINE_BOTTOM_DP.dp)
+                    .width(28.dp)
+                    .height(2.dp)
+                    .background(Faint),
+            )
+        }
+    }
+
     // ---- navigation ----
 
     private fun go(next: Screen) {
@@ -450,6 +523,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun back() {
+        if (pullMenu) {
+            closePullMenu()
+            return
+        }
         when (screen) {
             is Screen.Page -> {
                 val p = page
@@ -481,6 +558,8 @@ class MainActivity : ComponentActivity() {
         const val ACTION_PICK_CODE = "com.gios.lightauth.PICK_CODE"
         const val BITWARDEN_PACKAGE = "com.x8bit.bitwarden"
         const val CONTROL_PACKAGE = "com.gios.lightcontrol"
+        const val DALTONIZER_ENABLED = "accessibility_display_daltonizer_enabled"
+        const val DALTONIZER_MODE = "accessibility_display_daltonizer"
 
         /** BrightControl's door for an app asking to have its own setup run over the shell. */
         const val CONTROL_RUN_GRANTS = "com.gios.lightcontrol.action.RUN_GRANTS"
@@ -518,6 +597,26 @@ class MainActivity : ComponentActivity() {
      */
     private var pulleyPage by mutableStateOf(false)
 
+    /** Open the same menu from a tap on the handle bar; the top strip steals drags there. */
+    private fun togglePullMenu() {
+        if (pullMenu) closePullMenu() else openPullMenu()
+    }
+
+    private fun openPullMenu() {
+        val items = pulleyItems()
+        if (items.isEmpty()) return
+        pullMenuItems = items
+        pullTravel = 0f
+        pullPicked = 0
+        pullMenu = true
+    }
+
+    private fun closePullMenu() {
+        pullMenu = false
+        pullPicked = -1
+        pullTravel = 0f
+    }
+
     /** Rows top-to-bottom, unrolling with the pull; TOOLS is last so the longest pull always leaves. */
     private fun pulleyItems(): List<String> {
         val p = page
@@ -530,9 +629,9 @@ class MainActivity : ComponentActivity() {
                 if (libraryInstalled) add(Pull.LIBRARY)
                 add(Pull.TOOLS)
             } else buildList {
-                // The shortest pull is one page back, the next one forward; each row is there
-                // only when the page has somewhere to go. Never home: TOOLS is for that.
-                if (p.canGoBack) add(Pull.BACK)
+                // The shortest pull is one page back, or to the list when there is no page
+                // behind; the next one forward when there is a page ahead.
+                add(Pull.BACK)
                 if (p.canGoForward) add(Pull.FORWARD)
                 add(Pull.REFRESH)
                 if (p.tool.kind == ToolKind.SITE) {
@@ -551,7 +650,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun pulleyPick(index: Int) {
-        val item = pulleyItems().getOrNull(index) ?: return
+        // A tap in the menu picks from the rows the menu was opened with; a pull picks from
+        // the rows as they stand.
+        val item = (if (pullMenu) pullMenuItems else pulleyItems()).getOrNull(index) ?: return
+        closePullMenu()
         val p = page
         // Every row but CONVERT itself leaves the convert page behind.
         if (item != Pull.CONVERT) pulleyPage = false
@@ -566,7 +668,7 @@ class MainActivity : ComponentActivity() {
                 p?.reload()
                 say("Reloading")
             }
-            Pull.BACK -> p?.goBack()
+            Pull.BACK -> back()
             Pull.FORWARD -> p?.goForward()
             Pull.TICKET -> makeTicket()
             Pull.LIBRARY -> sendToLibrary()
@@ -710,6 +812,30 @@ class MainActivity : ComponentActivity() {
             return
         }
         isBrowser = resolvesWebLinks()
+    }
+
+    private fun refreshColour() {
+        colourGranted = checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED
+        colourOn = runCatching {
+            Settings.Secure.getInt(contentResolver, DALTONIZER_ENABLED, 0) == 0
+        }.getOrDefault(false)
+    }
+
+    private fun toggleColour() {
+        refreshColour()
+        if (!colourGranted) {
+            say("Needs the shell: adb shell pm grant $packageName ${Manifest.permission.WRITE_SECURE_SETTINGS}")
+            return
+        }
+        val grayscale = if (colourOn) 1 else 0
+        try {
+            if (grayscale == 1) Settings.Secure.putInt(contentResolver, DALTONIZER_MODE, 0)
+            Settings.Secure.putInt(contentResolver, DALTONIZER_ENABLED, grayscale)
+            colourOn = grayscale == 0
+        } catch (_: SecurityException) {
+            colourGranted = false
+            say("Needs the shell: adb shell pm grant $packageName ${Manifest.permission.WRITE_SECURE_SETTINGS}")
+        }
     }
 
     /** The package that answers a plain `https` address, or "" when it is a chooser or nothing. */
