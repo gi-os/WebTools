@@ -1,4 +1,3 @@
-import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -6,15 +5,6 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
-
-// Fine-grained PAT with Issues read+write on gi-os/light-reports only. CI sets REPORT_TOKEN from
-// the repo secret; a local build reads `reportToken=` from local.properties; a build with neither
-// still collects reports on the phone and posts nothing.
-val reportToken: String = System.getenv("REPORT_TOKEN")
-    ?: run {
-        val lp = rootProject.file("local.properties")
-        if (lp.exists()) Properties().apply { lp.inputStream().use { load(it) } }.getProperty("reportToken") ?: "" else ""
-    }
 
 android {
     namespace = "com.gios.webtools"
@@ -31,7 +21,6 @@ android {
         versionCode = 1
         versionName = "3.6.0"
 
-        buildConfigField("String", "REPORT_TOKEN", "\"" + reportToken.replace("\\", "").replace("\"", "") + "\"")
 
         // The LPIII is arm64 only.
         ndk { abiFilters += "arm64-v8a" }
@@ -85,7 +74,7 @@ dependencies {
     implementation(composeBom)
     implementation("androidx.core:core-ktx:1.15.0")
     // Shake-to-report, the SEND ERROR? chip, the crash offer, the wheel: the family's shared copy.
-    implementation("com.gios:light-common:1.10.0")
+    implementation("com.gios:light-common:1.11.0")
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")

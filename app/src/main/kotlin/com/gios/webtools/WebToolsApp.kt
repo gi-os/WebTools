@@ -102,7 +102,7 @@ class WebToolsApp : Application() {
         if (!isMainProcess) return
         // Shake, crash and failure reports go to gi-os/light-reports through the family's shared
         // reporter. The label is what the triage skill filters on.
-        LightReport.install(context = this, appName = "Web Tools", label = "webtools", token = BuildConfig.REPORT_TOKEN)
+        LightReport.install(context = this, appName = "Web Tools", label = "webtools", token = "") // reports queue until light-common 1.11.0 sends them via the relay
         LightReport.details = {
             val p = currentPage
             buildString {
